@@ -8,6 +8,7 @@ import { useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { StaggeredMenu, StaggeredMenuHandle } from "@/components/ui/staggered-menu";
+import { useLanguage } from "@/context/language-context";
 
 interface UserInfo {
     id: string;
@@ -15,13 +16,7 @@ interface UserInfo {
     displayName: string;
 }
 
-const navItems = [
-    { href: "/dashboard", label: "Dashboard", ariaLabel: "Go to Dashboard" },
-    { href: "/journal", label: "Journal", ariaLabel: "Go to Journal" },
-    { href: "/talk", label: "Talk", ariaLabel: "Go to Voice Chat" },
-    { href: "/insights", label: "Insights", ariaLabel: "Go to Insights" },
-    { href: "/settings", label: "Settings", ariaLabel: "Go to Settings" },
-];
+
 
 export function ProtectedLayoutClient({
     user,
@@ -34,6 +29,15 @@ export function ProtectedLayoutClient({
     const pathname = usePathname();
     const [signingOut, setSigningOut] = useState(false);
     const menuRef = useRef<StaggeredMenuHandle>(null);
+    const { t, language, setLanguage } = useLanguage();
+
+    const navItems = [
+        { href: "/dashboard", label: t.nav.dashboard, ariaLabel: "Go to Dashboard" },
+        { href: "/journal", label: t.nav.journal, ariaLabel: "Go to Journal" },
+        { href: "/talk", label: t.nav.talk, ariaLabel: "Go to Voice Chat" },
+        { href: "/insights", label: t.nav.insights, ariaLabel: "Go to Insights" },
+        { href: "/settings", label: t.nav.settings, ariaLabel: "Go to Settings" },
+    ];
 
     const handleSignOut = async () => {
         setSigningOut(true);
@@ -41,6 +45,10 @@ export function ProtectedLayoutClient({
         await supabase.auth.signOut();
         router.push("/sign-in");
         router.refresh();
+    };
+
+    const toggleLanguage = () => {
+        setLanguage(language === 'en' ? 'hi' : 'en');
     };
 
     const initials = user.displayName
@@ -92,12 +100,22 @@ export function ProtectedLayoutClient({
                             aria-label="Toggle navigation menu"
                         >
                             <span className="material-symbols-outlined text-xl">menu</span>
-                            <span className="hidden sm:inline">Menu</span>
+                            <span className="hidden sm:inline">{t.nav.menu}</span>
                         </button>
                     </div>
 
                     {/* RIGHT: Active page + User info */}
                     <div className="flex items-center gap-3 md:gap-5">
+                        {/* Language Toggle */}
+                        <button
+                            onClick={toggleLanguage}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#fefcfa] border border-[#8ca69e]/20 text-xs font-semibold text-[#064e3b] hover:bg-[#064e3b] hover:text-white transition-all shadow-sm"
+                            title="Switch Language"
+                        >
+                            <span className="material-symbols-outlined text-base">translate</span>
+                            <span>{language === 'en' ? 'HI' : 'EN'}</span>
+                        </button>
+
                         <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-full bg-[#8ca69e]/10 text-[#8ca69e] text-xs font-semibold uppercase tracking-wider">
                             {activePage}
                         </span>
@@ -116,7 +134,7 @@ export function ProtectedLayoutClient({
                                     disabled={signingOut}
                                     className="text-xs text-[#8ca69e] hover:text-destructive transition-colors mt-0.5"
                                 >
-                                    {signingOut ? "Signing out..." : "Sign Out"}
+                                    {signingOut ? "..." : t.nav.logout}
                                 </button>
                             </div>
                         </div>

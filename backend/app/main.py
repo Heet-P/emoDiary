@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import health
+from app.routers import health, journal, chat, emotion, analytics
 
 
 @asynccontextmanager
@@ -42,10 +42,10 @@ app.add_middleware(
 
 # Register routers
 app.include_router(health.router)
+app.include_router(journal.router)
+app.include_router(chat.router)
+app.include_router(emotion.router)
+app.include_router(analytics.router)
 
-# TODO: Phase 2 - Add auth dependency
-# TODO: Phase 3 - Add journal router
-# TODO: Phase 4 - Add chat router
-# TODO: Phase 5 - Add emotion router
-# TODO: Phase 6 - Add voice router
+# TODO: Phase 6 - Add voice router (Done in chat router)
 # TODO: Phase 7 - Add insights router

@@ -1,11 +1,8 @@
-// [FILENAME: src/app/layout.tsx]
-// [PURPOSE: Root layout with Inter + Merriweather fonts and Sonner toaster]
-// [PHASE: UI Redesign v2 - Warm Theme]
-
 import type { Metadata } from "next";
 import { Inter, Merriweather } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
+import { LanguageProvider } from "@/context/language-context";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -37,9 +34,11 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className={`${inter.variable} ${merriweather.variable} font-sans antialiased`}>
-        {children}
-        <Toaster position="top-right" richColors />
+      <body className={`${inter.variable} ${merriweather.variable} font-sans antialiased text-[#064e3b] bg-[#fefcfa]`}>
+        <LanguageProvider>
+          {children}
+          <Toaster position="top-right" richColors />
+        </LanguageProvider>
       </body>
     </html>
   );

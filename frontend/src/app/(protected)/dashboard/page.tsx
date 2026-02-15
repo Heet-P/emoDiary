@@ -29,7 +29,7 @@ export default async function DashboardPage() {
     // Get recent entries
     const { data: recentEntries } = await supabase
         .from("journal_entries")
-        .select("id, title, mood_before, created_at")
+        .select("id, title, emotion_tag, created_at")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false })
         .limit(5);

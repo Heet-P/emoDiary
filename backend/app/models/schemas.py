@@ -49,6 +49,9 @@ class ChatMessageResponse(BaseModel):
     response: str
     session_id: str
 
+class SessionStartRequest(BaseModel):
+    language: str = "en"
+
 class SessionStartResponse(BaseModel):
     session_id: str
 
