@@ -1,13 +1,13 @@
 # [FILENAME: app/dependencies.py]
-# [PURPOSE: FastAPI dependency injection for auth, DB, and caching]
-# [DEPENDENCIES: fastapi, supabase, app.config]
-# [PHASE: Phase 1 - Scaffolding (auth will be added in Phase 2)]
+# [PURPOSE: FastAPI dependency injection for auth verification via Supabase JWT]
+# [DEPENDENCIES: fastapi, httpx, app.config]
+# [PHASE: Phase 2 - Authentication]
 
 from fastapi import Depends, HTTPException, Header
 from typing import Optional
+import httpx
 
 from app.config import get_settings, Settings
-from app.models.database import get_supabase_client
 
 
 def get_settings_dep() -> Settings:
@@ -15,21 +15,45 @@ def get_settings_dep() -> Settings:
     return get_settings()
 
 
-# TODO: Phase 2 - Implement Supabase JWT verification
 async def get_current_user(
     authorization: Optional[str] = Header(None),
+    settings: Settings = Depends(get_settings_dep),
 ) -> str:
     """
     Verify Supabase JWT and return user ID.
-    Placeholder - will be implemented in Phase 2 with Supabase Auth.
+    Uses Supabase's /auth/v1/user endpoint to validate the token.
     """
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing authorization header")
 
-    # TODO: Phase 2 - Verify JWT token with Supabase
-    # For now, return a placeholder
     token = authorization.replace("Bearer ", "")
     if not token:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(status_code=401, detail="Invalid token format")
 
-    return token  # Will return actual user_id after Phase 2
+    try:
+        # Verify token by calling Supabase's user endpoint
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{settings.supabase_url}/auth/v1/user",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "apikey": settings.supabase_service_key,
+                },
+            )
+
+        if response.status_code != 200:
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+        user_data = response.json()
+        user_id = user_data.get("id")
+
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Could not extract user ID")
+
+        return user_id
+
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Auth service unavailable: {str(e)}"
+        )

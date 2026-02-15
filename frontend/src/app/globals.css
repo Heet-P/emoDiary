@@ -7,8 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-inter);
+  --font-serif: var(--font-serif);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -45,84 +46,267 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+  /* Warm MindSpace palette extras */
+  --color-teal-deep: #064e3b;
+  --color-cream-soft: #fefcfa;
+  --color-sage-green: #8ca69e;
+  --color-sage-50: #f4f7f6;
 }
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Warm MindSpace palette */
+  --background: #fffaf5;
+  --foreground: #064e3b;
+  --card: rgba(255, 255, 255, 0.6);
+  --card-foreground: #064e3b;
+  --popover: #fefcfa;
+  --popover-foreground: #064e3b;
+  --primary: #0da2e7;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f7f6;
+  --secondary-foreground: #064e3b;
+  --muted: #f4f7f6;
+  --muted-foreground: #8ca69e;
+  --accent: #f4f7f6;
+  --accent-foreground: #064e3b;
+  --destructive: #ef4444;
+  --border: rgba(140, 166, 158, 0.2);
+  --input: rgba(140, 166, 158, 0.2);
+  --ring: #0da2e7;
+  --chart-1: #0da2e7;
+  --chart-2: #10b981;
+  --chart-3: #f59e0b;
+  --chart-4: #6366f1;
+  --chart-5: #8b5cf6;
+  --sidebar: #fefcfa;
+  --sidebar-foreground: #064e3b;
+  --sidebar-primary: #0da2e7;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f4f7f6;
+  --sidebar-accent-foreground: #064e3b;
+  --sidebar-border: rgba(140, 166, 158, 0.15);
+  --sidebar-ring: #0da2e7;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #101c22;
+  --foreground: #fefcfa;
+  --card: rgba(26, 44, 53, 0.8);
+  --card-foreground: #fefcfa;
+  --popover: #1a2c35;
+  --popover-foreground: #fefcfa;
+  --primary: #0da2e7;
+  --primary-foreground: #ffffff;
+  --secondary: #1e3a4a;
+  --secondary-foreground: #e0f2fe;
+  --muted: #1e3a4a;
+  --muted-foreground: #94a3b8;
+  --accent: #1e3a4a;
+  --accent-foreground: #e0f2fe;
+  --destructive: #ef4444;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.15);
+  --ring: #0da2e7;
+  --chart-1: #38bdf8;
+  --chart-2: #34d399;
+  --chart-3: #fbbf24;
+  --chart-4: #818cf8;
+  --chart-5: #a78bfa;
+  --sidebar: #1a2c35;
+  --sidebar-foreground: #fefcfa;
+  --sidebar-primary: #0da2e7;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1e3a4a;
+  --sidebar-accent-foreground: #e0f2fe;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: #0da2e7;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
-    @apply bg-background text-foreground;
+    background:
+      radial-gradient(at 0% 0%, rgba(255, 237, 213, 0.4) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(251, 191, 36, 0.1) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(255, 237, 213, 0.3) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, rgba(251, 191, 36, 0.08) 0px, transparent 50%),
+      var(--background);
+    min-height: 100vh;
   }
+}
+
+/* Serif text utility */
+.serif-text {
+  font-family: var(--font-serif, 'Merriweather', serif);
+}
+
+/* ============================================
+   MindSpace Custom Animations & Utilities
+   ============================================ */
+
+/* Fade-in-up entrance animation */
+.fade-in-up {
+  animation: fadeInUp 0.8s ease-out forwards;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.delay-100 {
+  animation-delay: 0.1s;
+}
+
+.delay-200 {
+  animation-delay: 0.2s;
+}
+
+.delay-300 {
+  animation-delay: 0.3s;
+}
+
+.delay-400 {
+  animation-delay: 0.4s;
+}
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Glass morphism */
+.glass-effect {
+  background: rgba(255, 250, 245, 0.2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Abstract background blob */
+.abstract-blob {
+  filter: blur(100px);
+  opacity: 0.3;
+  z-index: -1;
+}
+
+/* Microphone pulse animation */
+.mic-shadow {
+  box-shadow: 0 0 0 0 rgba(13, 162, 231, 0.7);
+  animation: pulse-blue 2s infinite;
+}
+
+@keyframes pulse-blue {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(13, 162, 231, 0.7);
+  }
+
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 20px rgba(13, 162, 231, 0);
+  }
+
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(13, 162, 231, 0);
+  }
+}
+
+/* Voice wave animation */
+.wave-bar {
+  animation: wave 1s ease-in-out infinite;
+}
+
+.wave-bar:nth-child(odd) {
+  animation-duration: 0.8s;
+}
+
+.wave-bar:nth-child(even) {
+  animation-duration: 1.1s;
+}
+
+.wave-bar:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.wave-bar:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.wave-bar:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.wave-bar:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+.wave-bar:nth-child(5) {
+  animation-delay: 0.5s;
+}
+
+.wave-bar:nth-child(6) {
+  animation-delay: 0.4s;
+}
+
+.wave-bar:nth-child(7) {
+  animation-delay: 0.3s;
+}
+
+@keyframes wave {
+
+  0%,
+  100% {
+    height: 10%;
+  }
+
+  50% {
+    height: 100%;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Chart line draw animation */
+.chart-line {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: draw 2s ease-out forwards;
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Mood calendar cell hover */
+.mood-cell {
+  transition: transform 0.2s;
+}
+
+.mood-cell:hover {
+  transform: scale(1.1);
+  z-index: 10;
 }
