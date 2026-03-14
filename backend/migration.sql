@@ -208,3 +208,10 @@ CREATE TRIGGER on_auth_user_created
 -- ALTER TABLE public.journal_entries ADD COLUMN IF NOT EXISTS ai_multi_tags JSONB DEFAULT '[]';
 -- ALTER TABLE public.journal_entries ADD COLUMN IF NOT EXISTS detailed_sentiment_report TEXT;
 -- ALTER TABLE public.chat_sessions ADD COLUMN IF NOT EXISTS saved BOOLEAN DEFAULT FALSE;
+
+-- ──────────────────────────────────────────────────────────
+-- Avatar Config Columns (added for Phase 11)
+-- ──────────────────────────────────────────────────────────
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS avatar_config  JSONB DEFAULT \'{}\'::jsonb,
+  ADD COLUMN IF NOT EXISTS avatar_name    TEXT  DEFAULT \'emoDiary\';

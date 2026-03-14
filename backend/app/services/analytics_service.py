@@ -74,16 +74,25 @@ async def get_mood_trends(user_id: str, days: int = 30) -> Dict[str, Any]:
     
     total_score = 0
     scored_entries = 0
+    total_words = 0
+    
+    # Calculate streak
+    # Unique days set
+    entry_dates = set()
     
     for entry in entries:
         dt = datetime.fromisoformat(entry["created_at"].replace("Z", "+00:00"))
         date_str = dt.strftime("%Y-%m-%d")
+        entry_dates.add(date_str)
         
         # Heatmap tracking (for all 84 days)
         activity_heatmap[date_str] = activity_heatmap.get(date_str, 0) + 1
         
         emotion = entry.get("emotion_tag") or "Neutral"
         score = EMOTION_SCORES.get(emotion, 5)
+        wc = entry.get("word_count") or len(entry.get("content", "").split())
+        
+        total_words += wc
 
         # Only process metrics for the requested 'days' window (e.g., 30 days)
         if dt >= cutoff_30_days:
@@ -98,7 +107,6 @@ async def get_mood_trends(user_id: str, days: int = 30) -> Dict[str, Any]:
                 emotion_counts[emotion] = emotion_counts.get(emotion, 0) + 1
             
             # Word counts
-            wc = entry.get("word_count") or len(entry.get("content", "").split())
             word_count_trend.append({
                 "date": date_str,
                 "words": wc
@@ -148,6 +156,23 @@ async def get_mood_trends(user_id: str, days: int = 30) -> Dict[str, Any]:
     # Overall score (0 to 10)
     overall_score = round(total_score / scored_entries, 1) if scored_entries > 0 else 0
     
+    # Calculate day streak
+    current_streak = 0
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+    
+    check_date = datetime.now(timezone.utc)
+    if today in entry_dates or yesterday in entry_dates:
+        # Start counting
+        curr = check_date
+        # If no entry today, start from yesterday
+        if today not in entry_dates:
+            curr = curr - timedelta(days=1)
+            
+        while curr.strftime("%Y-%m-%d") in entry_dates:
+            current_streak += 1
+            curr = curr - timedelta(days=1)
+    
     # Recent entries (last 3)
     recent_entries = []
     for entry in reversed(entries[-3:]):
@@ -172,8 +197,10 @@ async def get_mood_trends(user_id: str, days: int = 30) -> Dict[str, Any]:
         "radar_data": radar_data,
         "word_count_trend": word_count_trend,
         "overall_score": overall_score,
+        "current_streak": current_streak,
+        "total_words": total_words,
         "recent_entries": recent_entries,
-        "entry_count": scored_entries
+        "entry_count": len(entries)
     }
 
 async def generate_insights(user_id: str, language: str = "en") -> str:
@@ -195,7 +222,10 @@ async def generate_insights(user_id: str, language: str = "en") -> str:
     entries = response.data or []
     
     if not entries:
-        return "Not enough data to generate insights. Keep journaling!" if language == "en" else "अंतर्दृष्टि उत्पन्न करने के लिए पर्याप्त डेटा नहीं है। पत्रिका लिखते रहें!"
+        if language == "en":
+            return json.dumps([{"observation": "Not enough data to generate insights. Keep journaling!", "actions": ["Write your first entry!", "Try journaling daily for a week"]}])
+        else:
+            return json.dumps([{"observation": "अंतर्दृष्टि के लिए पर्याप्त डेटा नहीं है। लिखते रहें!", "actions": ["अपनी पहली प्रविष्टि लिखें", "एक सप्ताह तक दैनिक जर्नलिंग करें"]}])
         
     # Prepare prompt
     entries_text = ""
@@ -204,60 +234,68 @@ async def generate_insights(user_id: str, language: str = "en") -> str:
         emotion = entry.get("emotion_tag") or "Unknown"
         entries_text += f"- {date_str} (Mood: {emotion}): {entry['content']}\n"
         
-    prompt = f"""
-    Analyze the following recent journal entries from a user. 
-    Identify patterns, emotional triggers, and improvements or declines in their well-being.
-    
+    if language == "hi":
+        prompt = f"""
+    आप एक सहानुभूतिपूर्ण मानसिक स्वास्थ्य विश्लेषक हैं। निम्नलिखित जर्नल प्रविष्टियों का विश्लेषण करें और 3 अंतर्दृष्टि उत्पन्न करें।
+    प्रत्येक अंतर्दृष्टि में एक अवलोकन और 2-3 सुझाव होने चाहिए।
+
+    प्रविष्टियां:
+    {entries_text}
+
+    STRICT: Return ONLY a valid JSON array. No other text. No markdown. No explanation.
+    Format:
+    [
+      {{"observation": "आपका अवलोकन यहाँ...", "actions": ["सुझाव 1", "सुझाव 2"]}},
+      {{"observation": "दूसरा अवलोकन...", "actions": ["सुझाव 1", "सुझाव 2"]}}
+    ]
+    """
+    else:
+        prompt = f"""
+    You are an empathetic mental health companion analyst.
+    Analyze the following recent journal entries and produce exactly 3 structured insights.
+    Each insight must have:
+    - A short observation (1-2 sentences, written in 2nd person, no bold, no markdown)
+    - 2-3 concrete, actionable suggestions the user can take based on that observation
+
     Entries:
     {entries_text}
+
+    STRICT: Return ONLY a valid JSON array. No other text. No markdown. No explanation.
+    Format:
+    [
+      {{"observation": "Your observation here...", "actions": ["Action 1", "Action 2"]}},
+      {{"observation": "Another observation...", "actions": ["Action 1", "Action 2"]}}
+    ]
     """
-
-    if language == "hi":
-        prompt += """
-        Provide 3 concise, actionable, and empathetic insights in bullet points in HINDI (Devanagari script).
-        Format:
-        - Insight 1
-        - Insight 2
-        - Insight 3
-        
-        STRICT RULES:
-        1. Return ONLY the bullet points.
-        2. Do NOT add identifying text like "Here are the insights" or "Note:".
-        3. Do NOT use markdown bolding (**).
-        4. Focus on "You" perspective (use "आप").
-        """
-    else:
-        prompt += """
-        Provide 3 concise, actionable, and empathetic insights in bullet points.
-        Format:
-        - Insight 1
-        - Insight 2
-        - Insight 3
-
-        STRICT RULES:
-        1. Return ONLY the bullet points.
-        2. Do NOT add identifying text like "Here are the insights" or "Note:".
-        3. Do NOT use markdown bolding (**).
-        4. Focus on "You" perspective.
-        """
     
     try:
         client = _get_groq_client()
         completion = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": "You are an empathetic mental health companion analyst. You output ONLY bullet points with no intro or outro."},
+                {"role": "system", "content": "You are a mental health companion. You output ONLY valid JSON arrays, nothing else."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.7,
-            max_tokens=300,
+            temperature=0.65,
+            max_tokens=600,
+            response_format={"type": "json_object"}
         )
         
-        return completion.choices[0].message.content.strip()
+        raw = completion.choices[0].message.content.strip()
+        parsed = json.loads(raw)
+        # Handle if the model wraps in an object {"insights": [...]}
+        if isinstance(parsed, dict):
+            for key in ["insights", "data", "result", "items"]:
+                if key in parsed and isinstance(parsed[key], list):
+                    parsed = parsed[key]
+                    break
+            else:
+                parsed = list(parsed.values())[0] if parsed else []
+        return json.dumps(parsed)
         
     except Exception as e:
         print(f"Error generating insights: {e}")
-        return "Unable to generate insights at the moment. Please try again later."
+        return json.dumps([{"observation": "Unable to generate insights at the moment. Please try again later.", "actions": ["Keep journaling daily", "Come back in a few days"]}])
 
 
 async def calculate_therapist_score(user_id: str) -> dict:

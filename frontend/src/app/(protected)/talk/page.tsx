@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useLanguage } from "@/context/language-context";
+import { AvatarHead, AvatarConfig } from "@/components/avatar/AvatarHead";
 
 interface Message {
     id?: string;
@@ -15,6 +16,13 @@ interface Message {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 type VoiceState = "idle" | "listening" | "processing" | "speaking";
+
+const DEFAULT_AVATAR: AvatarConfig = {
+    skin: "warm",
+    hair: "black",
+    headShape: "round",
+    accentColor: "#10b981",
+};
 
 export default function TalkPage() {
     const { t, language, setLanguage } = useLanguage();
@@ -29,7 +37,18 @@ export default function TalkPage() {
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const router = require("next/navigation").useRouter();
 
-    // Continuous Voice State
+    // Avatar state
+    const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>(DEFAULT_AVATAR);
+    const [avatarName, setAvatarName] = useState("emoDiary");
+    const [userDisplayName, setUserDisplayName] = useState("You");
+
+    // Lip sync
+    const [lipSyncValue, setLipSyncValue] = useState(0);
+    const lipSyncRafRef = useRef<number | null>(null);
+    const lipSyncAnalyserRef = useRef<AnalyserNode | null>(null);
+    const lipSyncCtxRef = useRef<AudioContext | null>(null);
+
+    // Voice
     const [voiceState, setVoiceState] = useState<VoiceState>("idle");
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
@@ -38,6 +57,35 @@ export default function TalkPage() {
     const vadFrameRef = useRef<number | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+
+    // Load avatar config on mount
+    useEffect(() => {
+        async function loadAvatar() {
+            try {
+                const token = await getToken();
+                const res = await fetch(`${API_BASE}/api/profile/avatar`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setAvatarConfig(data.avatar_config ?? DEFAULT_AVATAR);
+                    setAvatarName(data.avatar_name ?? "emoDiary");
+                }
+            } catch { /* use defaults */ }
+        }
+
+        async function loadUser() {
+            const supabase = createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const name = user.user_metadata?.full_name || user.email?.split("@")[0] || "You";
+                setUserDisplayName(name.split(" ")[0]);
+            }
+        }
+
+        loadAvatar();
+        loadUser();
+    }, []);
 
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -53,28 +101,68 @@ export default function TalkPage() {
         return data.session?.access_token || "";
     };
 
+    // ─── Lip Sync Engine ───────────────────────────────────────────
+    const startLipSync = (audioEl: HTMLAudioElement) => {
+        stopLipSync();
+        try {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            const ctx = new AudioContextClass();
+            lipSyncCtxRef.current = ctx;
+
+            const analyser = ctx.createAnalyser();
+            analyser.fftSize = 256;
+            lipSyncAnalyserRef.current = analyser;
+
+            const source = ctx.createMediaElementSource(audioEl);
+            source.connect(analyser);
+            analyser.connect(ctx.destination);
+
+            const buf = new Uint8Array(analyser.frequencyBinCount);
+
+            const tick = () => {
+                analyser.getByteTimeDomainData(buf);
+                // RMS amplitude
+                let sumSq = 0;
+                for (let i = 0; i < buf.length; i++) {
+                    const n = (buf[i] - 128) / 128;
+                    sumSq += n * n;
+                }
+                const rms = Math.sqrt(sumSq / buf.length);
+                setLipSyncValue(Math.min(rms * 4, 1)); // scale up sensitivity
+                lipSyncRafRef.current = requestAnimationFrame(tick);
+            };
+            lipSyncRafRef.current = requestAnimationFrame(tick);
+        } catch (e) {
+            console.warn("Lip sync not available:", e);
+        }
+    };
+
+    const stopLipSync = () => {
+        if (lipSyncRafRef.current) {
+            cancelAnimationFrame(lipSyncRafRef.current);
+            lipSyncRafRef.current = null;
+        }
+        setLipSyncValue(0);
+        if (lipSyncCtxRef.current) {
+            lipSyncCtxRef.current.close().catch(() => {});
+            lipSyncCtxRef.current = null;
+        }
+    };
+
+    // ─── Session ───────────────────────────────────────────────────
     const startSession = async () => {
         setStarting(true);
         try {
             const token = await getToken();
             const res = await fetch(`${API_BASE}/api/chat/session`, {
                 method: "POST",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                },
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
                 body: JSON.stringify({ language }),
             });
-
-            if (!res.ok) {
-                throw new Error("Failed to start session");
-            }
-
+            if (!res.ok) throw new Error("Failed to start session");
             const data = await res.json();
             setSessionId(data.session_id);
-            setMessages([
-                { role: "assistant", content: data.greeting },
-            ]);
+            setMessages([{ role: "assistant", content: data.greeting }]);
             toast.success(language === "en" ? "Session started" : "सत्र शुरू हो गया");
             setTimeout(() => inputRef.current?.focus(), 100);
         } catch (error) {
@@ -87,38 +175,36 @@ export default function TalkPage() {
 
     const sendMessage = async () => {
         if (!input.trim() || !sessionId || loading || voiceState !== "idle") return;
-
         const userMessage = input.trim();
         setInput("");
         setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
         setLoading(true);
-
         try {
             const token = await getToken();
             const res = await fetch(`${API_BASE}/api/chat/message`, {
                 method: "POST",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    message: userMessage,
-                    session_id: sessionId,
-                    language: language,
-                }),
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ message: userMessage, session_id: sessionId, language }),
             });
-
             if (!res.ok) throw new Error("Failed to send message");
-
             const data = await res.json();
             setMessages((prev) => [...prev, { role: "assistant", content: data.response }]);
             setLoading(false);
 
             if (data.audio_base64) {
                 const audio = new Audio(`data:audio/wav;base64,${data.audio_base64}`);
-                audio.play();
+                currentAudioRef.current = audio;
+                setVoiceState("speaking");
+                audio.onended = () => {
+                    stopLipSync();
+                    setVoiceState("idle");
+                };
+                startLipSync(audio);
+                audio.play().catch(e => {
+                    stopLipSync();
+                    setVoiceState("idle");
+                });
             }
-
         } catch (error) {
             console.error("Failed to send message:", error);
             toast.error(t.common.error);
@@ -133,8 +219,9 @@ export default function TalkPage() {
         }
     };
 
-    // Continuous Voice Loop implementing VAD (Voice Activity Detection)
+    // ─── Voice Loop ───────────────────────────────────────────────
     const cleanupVoiceResources = () => {
+        stopLipSync();
         if (vadFrameRef.current) cancelAnimationFrame(vadFrameRef.current);
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
             mediaRecorderRef.current.stop();
@@ -144,7 +231,7 @@ export default function TalkPage() {
             streamRef.current = null;
         }
         if (audioContextRef.current) {
-            audioContextRef.current.close().catch(() => { });
+            audioContextRef.current.close().catch(() => {});
             audioContextRef.current = null;
         }
         if (currentAudioRef.current) {
@@ -155,7 +242,7 @@ export default function TalkPage() {
 
     const startListeningLoop = async () => {
         if (!sessionId) return;
-        cleanupVoiceResources(); // ensure clean state
+        cleanupVoiceResources();
         setVoiceState("listening");
 
         try {
@@ -166,20 +253,16 @@ export default function TalkPage() {
             audioChunksRef.current = [];
 
             mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    audioChunksRef.current.push(event.data);
-                }
+                if (event.data.size > 0) audioChunksRef.current.push(event.data);
             };
 
             mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                // If it wasn't manually aborted (idle state), process it
+                const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
                 if (audioChunksRef.current.length > 0 && streamRef.current !== null) {
                     sendVoiceMessage(audioBlob);
                 }
             };
 
-            // Setup VAD
             const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
             const audioContext = new AudioContextClass();
             audioContextRef.current = audioContext;
@@ -196,30 +279,26 @@ export default function TalkPage() {
             silenceStartRef.current = null;
             const checkSilence = () => {
                 if (mediaRecorder.state !== "recording") return;
-
                 analyser.getByteFrequencyData(dataArray);
                 const sum = dataArray.reduce((a, b) => a + b, 0);
                 const average = sum / bufferLength;
 
-                if (average > 5) { // Highly sensitive Is Speaking threshold
+                if (average > 5) {
                     silenceStartRef.current = null;
                 } else {
                     if (silenceStartRef.current === null) {
                         silenceStartRef.current = Date.now();
                     } else if (Date.now() - silenceStartRef.current > 3000) {
-                        // 3 seconds of silence -> Stop recording and trigger sending
                         mediaRecorder.stop();
                         if (vadFrameRef.current) cancelAnimationFrame(vadFrameRef.current);
-                        return; // Exit loop
+                        return;
                     }
                 }
                 vadFrameRef.current = requestAnimationFrame(checkSilence);
             };
 
-            // Standard start captures a single Blob when stopped
             mediaRecorder.start();
             vadFrameRef.current = requestAnimationFrame(checkSilence);
-
         } catch (error) {
             console.error("Error accessing mic:", error);
             setVoiceState("idle");
@@ -245,34 +324,26 @@ export default function TalkPage() {
             const token = await getToken();
             const res = await fetch(`${API_BASE}/api/chat/voice`, {
                 method: "POST",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                headers: { Authorization: `Bearer ${token}` },
                 body: formData,
             });
-
             if (!res.ok) throw new Error("Voice processing failed");
 
             const data = await res.json();
-
-            // Add user transcript if they actually spoke words
-            if (data.user_transcript && data.user_transcript.trim().length > 0) {
+            if (data.user_transcript?.trim().length > 0) {
                 setMessages((prev) => [...prev, { role: "user", content: data.user_transcript }]);
             }
-
-            // Add AI response
-            if (data.ai_response && data.ai_response.trim().length > 0) {
+            if (data.ai_response?.trim().length > 0) {
                 setMessages((prev) => [...prev, { role: "assistant", content: data.ai_response }]);
             }
 
-            // Play audio and auto-continue loop
             if (data.ai_audio) {
                 setVoiceState("speaking");
                 const audio = new Audio(`data:audio/wav;base64,${data.ai_audio}`);
                 currentAudioRef.current = audio;
 
                 audio.onended = () => {
-                    // Start listening again only if user didn't hit stop
+                    stopLipSync();
                     setVoiceState((current) => {
                         if (current === "speaking") {
                             setTimeout(startListeningLoop, 100);
@@ -282,12 +353,13 @@ export default function TalkPage() {
                     });
                 };
 
+                startLipSync(audio);
                 audio.play().catch(e => {
                     console.error("Audio playback blocked", e);
+                    stopLipSync();
                     setVoiceState("idle");
                 });
             } else {
-                // Fallback if no audio (e.g. user was just silent)
                 setVoiceState((current) => {
                     if (current === "processing") {
                         setTimeout(startListeningLoop, 100);
@@ -296,10 +368,8 @@ export default function TalkPage() {
                     return current;
                 });
             }
-
         } catch (error) {
             console.error("Voice message failed:", error);
-            // Ignore tiny noises that transcribe fail, just go back to listening
             setVoiceState((current) => {
                 if (current === "processing") {
                     setTimeout(startListeningLoop, 100);
@@ -313,8 +383,6 @@ export default function TalkPage() {
     const handleEndSessionClick = () => {
         if (!sessionId) return;
         stopContinuousVoice();
-        
-        // Only prompt to save if they actually sent a message (more than just the AI greeting)
         if (messages.length > 1) {
             setShowSavePrompt(true);
         } else {
@@ -326,36 +394,30 @@ export default function TalkPage() {
         if (!sessionId) return;
         setEnding(true);
         setShowSavePrompt(false);
-        
         try {
             const token = await getToken();
-            
-            // End the session stats natively
             await fetch(`${API_BASE}/api/chat/session/${sessionId}/end`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}` },
             });
-
             if (saveAsJournal) {
-                const toastId = toast.loading(language === 'hi' ? "जर्नल में बदल रहे हैं..." : "Converting to Journal...");
+                const toastId = toast.loading(language === "hi" ? "जर्नल में बदल रहे हैं..." : "Converting to Journal...");
                 const res = await fetch(`${API_BASE}/api/chat/session/${sessionId}/convert_to_journal`, {
                     method: "POST",
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                
                 if (res.ok) {
-                    toast.success(language === 'hi' ? "जर्नल के रूप में सहेजा गया!" : "Saved as Journal Entry!", { id: toastId });
+                    toast.success(language === "hi" ? "जर्नल के रूप में सहेजा गया!" : "Saved as Journal Entry!", { id: toastId });
                     setSessionId(null);
                     setMessages([]);
                     router.push("/journal");
                     return;
                 } else {
-                    toast.error(language === 'hi' ? "सहेजने में विफल" : "Failed to convert", { id: toastId });
+                    toast.error(language === "hi" ? "सहेजने में विफल" : "Failed to convert", { id: toastId });
                 }
             } else {
-                toast.success(language === 'hi' ? "बातचीत समाप्त हुई" : "Conversation ended");
+                toast.success(language === "hi" ? "बातचीत समाप्त हुई" : "Conversation ended");
             }
-            
             setSessionId(null);
             setMessages([]);
         } catch (error) {
@@ -366,64 +428,53 @@ export default function TalkPage() {
         }
     };
 
-    // Dynamic UI Helpers
     const isBusy = loading || voiceState === "processing" || voiceState === "speaking";
 
     const getStatusText = () => {
-        if (voiceState === "listening") return t.talk.listening || "Listening... Start speaking";
+        if (voiceState === "listening") return t.talk.listening || "Listening...";
         if (voiceState === "processing") return t.talk.processing || "Thinking...";
         if (voiceState === "speaking") return t.talk.speaking || "Speaking...";
         if (loading) return t.talk.processing || "Typing...";
         return "";
     };
 
+    // ─── Pre-session landing ───────────────────────────────────────
     if (!sessionId) {
         return (
             <div className="max-w-2xl mx-auto flex flex-col items-center justify-center min-h-[60vh] text-center space-y-8 fade-in-up">
                 <div className="relative">
                     <div className="absolute inset-0 bg-[#064e3b]/20 blur-3xl rounded-full" />
-                    <span className="material-symbols-outlined text-8xl text-[#064e3b] relative z-10">
-                        graphic_eq
-                    </span>
+                    <div className="relative z-10">
+                        <AvatarHead
+                            config={avatarConfig}
+                            name={avatarName}
+                            lipSyncValue={0}
+                            size={160}
+                        />
+                    </div>
                 </div>
 
                 <div className="space-y-4 max-w-md">
                     <h1 className="serif-text text-4xl font-light text-[#064e3b]">{t.talk.title}</h1>
-                    <p className="text-[#8ca69e] text-lg font-light leading-relaxed">
-                        {t.talk.subtitle}
-                    </p>
+                    <p className="text-[#8ca69e] text-lg font-light leading-relaxed">{t.talk.subtitle}</p>
                 </div>
 
                 {/* Language Toggle */}
-                <div className="flex bg-[#8ca69e]/10 p-1 rounded-full">
-                    <button
-                        onClick={() => setLanguage("en")}
-                        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${language === "en" ? "bg-white shadow text-[#064e3b]" : "text-[#8ca69e] hover:text-[#064e3b]"
-                            }`}
-                    >
-                        English
-                    </button>
-                    <button
-                        onClick={() => setLanguage("hi")}
-                        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${language === "hi" ? "bg-white shadow text-[#064e3b]" : "text-[#8ca69e] hover:text-[#064e3b]"
-                            }`}
-                    >
-                        हिंदी
-                    </button>
-                    <button
-                        onClick={() => setLanguage("hinglish")}
-                        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${language === "hinglish" ? "bg-white shadow text-[#064e3b]" : "text-[#8ca69e] hover:text-[#064e3b]"
-                            }`}
-                    >
-                        Hinglish
-                    </button>
-                    <button
-                        onClick={() => setLanguage("gu")}
-                        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${language === "gu" ? "bg-white shadow text-[#064e3b]" : "text-[#8ca69e] hover:text-[#064e3b]"
-                            }`}
-                    >
-                        ગુજરાતી
-                    </button>
+                <div className="flex bg-[#8ca69e]/10 p-1 rounded-full flex-wrap gap-1">
+                    {[
+                        { id: "en", label: "English" },
+                        { id: "hi", label: "हिंदी" },
+                        { id: "hinglish", label: "Hinglish" },
+                        { id: "gu", label: "ગુજરાતી" },
+                    ].map((lang) => (
+                        <button
+                            key={lang.id}
+                            onClick={() => setLanguage(lang.id as any)}
+                            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${language === lang.id ? "bg-white shadow text-[#064e3b]" : "text-[#8ca69e] hover:text-[#064e3b]"}`}
+                        >
+                            {lang.label}
+                        </button>
+                    ))}
                 </div>
 
                 <div className="flex gap-4">
@@ -448,58 +499,103 @@ export default function TalkPage() {
                     </button>
                 </div>
 
-                <p className="text-xs text-[#8ca69e]/60 mt-8">
-                    Your conversations are private and secure.
-                </p>
+                <p className="text-xs text-[#8ca69e]/60 mt-8">Your conversations are private and secure.</p>
             </div>
         );
     }
 
+    // ─── Active Session — 50/50 Split ────────────────────────────
     return (
-        <div className="max-w-3xl mx-auto h-[calc(100vh-140px)] flex flex-col fade-in-up">
-            {/* Chat Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#8ca69e]/10 bg-white/50 backdrop-blur-sm rounded-t-xl">
+        <div className="max-w-6xl mx-auto h-[calc(100vh-140px)] flex flex-col fade-in-up">
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-[#8ca69e]/10 bg-white/50 backdrop-blur-sm rounded-t-xl">
                 <div className="flex items-center gap-3">
-                    {(voiceState !== "idle" || loading) ? (
+                    {voiceState !== "idle" || loading ? (
                         <>
-                            <div className={`w-2 h-2 rounded-full ${voiceState === 'listening' ? 'bg-red-500' : 'bg-green-500'} animate-pulse`} />
-                            <span className="text-sm font-medium text-[#064e3b]">
-                                {getStatusText()}
-                            </span>
+                            <div className={`w-2 h-2 rounded-full ${voiceState === "listening" ? "bg-red-500" : "bg-green-500"} animate-pulse`} />
+                            <span className="text-sm font-medium text-[#064e3b]">{getStatusText()}</span>
                         </>
                     ) : (
                         <>
                             <div className="w-2 h-2 rounded-full bg-[#8ca69e]/40" />
-                            <span className="text-sm font-medium text-[#8ca69e]">
-                                IDLE
-                            </span>
+                            <span className="text-sm text-[#8ca69e]">Idle</span>
                         </>
                     )}
                 </div>
                 <button
                     onClick={handleEndSessionClick}
                     disabled={ending}
-                    className="text-xs text-[#8ca69e] hover:text-destructive transition-colors px-3 py-1.5 rounded-lg hover:bg-destructive/5"
+                    className="text-xs text-[#8ca69e] hover:text-rose-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-rose-50"
                 >
-                    {ending ? t.journal.saving : t.nav.logout}
+                    {ending ? t.journal.saving : "End Session"}
                 </button>
             </div>
 
-            {/* Messages Area */}
-            <div className={`flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide ${voiceState !== "idle" ? "pb-32" : ""}`}>
-                {messages.map((msg, i) => (
-                    <div
-                        key={i}
-                        className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                    >
+            {/* 50/50 Avatar Area */}
+            <div className="grid grid-cols-2 border-b border-[#8ca69e]/10 bg-gradient-to-b from-[#f8faf9] to-white">
+                {/* Left — User Panel */}
+                <div className="flex flex-col items-center justify-center py-8 px-4 border-r border-[#8ca69e]/10">
+                    {/* User avatar badge */}
+                    <div className="flex flex-col items-center gap-3">
                         <div
-                            className={`
-                                max-w-[80%] rounded-2xl px-5 py-3.5 text-sm leading-relaxed shadow-sm
-                                ${msg.role === "user"
+                            className={`w-24 h-24 rounded-full bg-gradient-to-br from-[#8ca69e]/30 to-[#064e3b]/20 flex items-center justify-center text-3xl font-serif text-[#064e3b] shadow-md transition-all duration-300 ${voiceState === "listening" ? "ring-4 ring-red-400 ring-offset-2 scale-105" : ""}`}
+                        >
+                            {userDisplayName.charAt(0).toUpperCase()}
+                        </div>
+                        {/* Name */}
+                        <div className="px-3 py-1 rounded-full text-xs font-semibold bg-[#8ca69e]/10 border border-[#8ca69e]/20 text-[#064e3b]">
+                            {userDisplayName}
+                        </div>
+                        {/* Voice rings when listening */}
+                        {voiceState === "listening" && (
+                            <div className="flex items-center gap-1 mt-2">
+                                {[0, 1, 2, 3, 4].map((i) => (
+                                    <div
+                                        key={i}
+                                        className="w-1 bg-red-500 rounded-full animate-bounce"
+                                        style={{
+                                            height: `${8 + Math.random() * 16}px`,
+                                            animationDelay: `${i * 0.1}s`,
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                        {voiceState !== "listening" && (
+                            <p className="text-xs text-[#8ca69e] mt-1">
+                                {voiceState === "processing" ? "Processing..." : "Your turn..."}
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Right — AI Avatar Panel */}
+                <div className="flex flex-col items-center justify-center py-8 px-4">
+                    <AvatarHead
+                        config={avatarConfig}
+                        name={avatarName}
+                        lipSyncValue={lipSyncValue}
+                        size={140}
+                        isSpeaking={voiceState === "speaking"}
+                    />
+                    {voiceState === "speaking" && (
+                        <p className="text-xs text-[#10b981] mt-3 animate-pulse font-medium">
+                            {avatarName} is speaking...
+                        </p>
+                    )}
+                </div>
+            </div>
+
+            {/* Messages Area */}
+            <div className={`flex-1 overflow-y-auto p-5 space-y-5 scrollbar-hide`}>
+                {messages.map((msg, i) => (
+                    <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                        <div
+                            className={`max-w-[78%] rounded-2xl px-5 py-3.5 text-sm leading-relaxed shadow-sm ${msg.role === "user"
                                     ? "bg-[#064e3b] text-[#fefcfa] rounded-br-none"
                                     : "bg-white border border-[#8ca69e]/20 text-foreground rounded-bl-none"
-                                }
-                            `}
+                                }`}
                         >
                             {msg.content}
                         </div>
@@ -517,30 +613,14 @@ export default function TalkPage() {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Area */}
-            <div className="p-4 bg-white/50 backdrop-blur-sm border-t border-[#8ca69e]/10 rounded-b-xl relative z-10">
-
-                {/* Visualizer Orb for voice mode */}
-                {voiceState !== "idle" && (
-                    <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 flex items-center justify-center pointer-events-none">
-                        <div className={`w-12 h-12 rounded-full transition-all duration-300 shadow-xl flex items-center justify-center
-                            ${voiceState === 'listening' ? 'bg-red-500 scale-110 shadow-red-500/40 animate-pulse' :
-                                voiceState === 'processing' ? 'bg-[#8ca69e] scale-90 opacity-70' :
-                                    'bg-[#064e3b] scale-125 shadow-[#064e3b]/40'}
-                        `}>
-                            <span className="material-symbols-outlined text-white text-xl">
-                                {voiceState === 'listening' ? 'mic' : voiceState === 'processing' ? 'hourglass_empty' : 'graphic_eq'}
-                            </span>
-                        </div>
-                    </div>
-                )}
-
-                <div className="relative flex items-end gap-2 bg-white border border-[#8ca69e]/20 rounded-2xl p-2 shadow-sm focus-within:border-[#8ca69e]/40 focus-within:shadow-md transition-all">
+            {/* Input */}
+            <div className="p-4 bg-white/50 backdrop-blur-sm border-t border-[#8ca69e]/10 rounded-b-xl">
+                <div className="relative flex items-end gap-2 bg-white border border-[#8ca69e]/20 rounded-2xl p-2 shadow-sm focus-within:border-[#8ca69e]/40 transition-all">
                     <button
                         onClick={voiceState !== "idle" ? stopContinuousVoice : startListeningLoop}
                         className={`p-3 rounded-xl transition-all ${voiceState !== "idle"
-                            ? "bg-red-50 text-red-600 hover:bg-red-100 shadow-inner"
-                            : "text-[#8ca69e] hover:bg-[#8ca69e]/10 hover:text-[#064e3b]"
+                                ? "bg-red-50 text-red-600 hover:bg-red-100 shadow-inner"
+                                : "text-[#8ca69e] hover:bg-[#8ca69e]/10 hover:text-[#064e3b]"
                             }`}
                         title={voiceState !== "idle" ? "Stop Live Voice" : "Start Live Voice"}
                     >
@@ -569,24 +649,23 @@ export default function TalkPage() {
                         <span className="material-symbols-outlined text-xl">send</span>
                     </button>
                 </div>
-                <p className="text-center text-[10px] text-[#8ca69e]/40 mt-3 font-light">
+                <p className="text-center text-[10px] text-[#8ca69e]/40 mt-2">
                     {voiceState !== "idle" ? "Hands-free continuous mode is active." : "AI can make mistakes. Consider checking important information."}
                 </p>
             </div>
+
             {/* Save Prompt Modal */}
             {showSavePrompt && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
                     <div className="bg-[#fefcfa] rounded-xl border border-[#8ca69e]/20 p-8 max-w-sm w-full shadow-2xl fade-in-up">
                         <div className="text-center space-y-4">
-                            <span className="material-symbols-outlined text-4xl text-[#064e3b] mb-2">
-                                import_contacts
-                            </span>
+                            <span className="material-symbols-outlined text-4xl text-[#064e3b] mb-2">import_contacts</span>
                             <h3 className="serif-text text-xl font-medium">
-                                {language === 'hi' ? "इस बातचीत को जर्नल में बदलें?" : "Convert to Journal?"}
+                                {language === "hi" ? "इस बातचीत को जर्नल में बदलें?" : "Convert to Journal?"}
                             </h3>
                             <p className="text-sm text-[#8ca69e] leading-relaxed">
-                                {language === 'hi' 
-                                    ? "हम इस बातचीत का सारांश तैयार करके इसे आपकी डायरी में नए टैग्स के साथ सेव कर सकते हैं।" 
+                                {language === "hi"
+                                    ? "हम इस बातचीत का सारांश तैयार करके इसे आपकी डायरी में नए टैग्स के साथ सेव कर सकते हैं।"
                                     : "We can summarize this conversation and save it to your diary with AI generated tags."}
                             </p>
                             <div className="flex flex-col gap-3 pt-4">
@@ -595,14 +674,14 @@ export default function TalkPage() {
                                     disabled={ending}
                                     className="w-full px-4 py-3 rounded-lg bg-[#064e3b] text-[#fefcfa] text-sm font-medium hover:bg-[#086a51] transition-colors disabled:opacity-50"
                                 >
-                                    {ending ? "Saving..." : (language === 'hi' ? "हाँ, डायरी में सहेजें" : "Yes, save to Diary")}
+                                    {ending ? "Saving..." : (language === "hi" ? "हाँ, डायरी में सहेजें" : "Yes, save to Diary")}
                                 </button>
                                 <button
                                     onClick={() => endSession(false)}
                                     disabled={ending}
                                     className="w-full px-4 py-3 rounded-lg border border-[#8ca69e]/20 text-[#8ca69e] text-sm font-medium hover:bg-[#8ca69e]/10 transition-colors"
                                 >
-                                    {language === 'hi' ? "नहीं, बस छोड़ दें" : "No, just discard"}
+                                    {language === "hi" ? "नहीं, बस छोड़ दें" : "No, just discard"}
                                 </button>
                             </div>
                         </div>
@@ -612,4 +691,3 @@ export default function TalkPage() {
         </div>
     );
 }
-
