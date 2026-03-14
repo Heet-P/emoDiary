@@ -41,7 +41,7 @@ export function ProtectedLayoutClient({
         { href: "/talk", label: t.nav.talk, ariaLabel: "Go to Voice Chat" },
         { href: "/insights", label: t.nav.insights, ariaLabel: "Go to Insights" },
         { href: "/settings", label: t.nav.settings, ariaLabel: "Go to Settings" },
-        ...(!isPremium ? [{ href: "/upgrade", label: "✨ Go Premium", ariaLabel: "Upgrade to Premium" }] : []),
+        ...(!isPremium ? [{ href: "/upgrade", label: "Go Premium", ariaLabel: "Upgrade to Premium" }] : []),
     ];
 
     const handleSignOut = async () => {
