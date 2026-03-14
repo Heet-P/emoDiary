@@ -380,6 +380,13 @@ export default function TalkPage() {
                     >
                         Hinglish
                     </button>
+                    <button
+                        onClick={() => setLanguage("gu")}
+                        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${language === "gu" ? "bg-white shadow text-[#064e3b]" : "text-[#8ca69e] hover:text-[#064e3b]"
+                            }`}
+                    >
+                        ગુજરાતી
+                    </button>
                 </div>
 
                 <div className="flex gap-4">

@@ -72,7 +72,12 @@ async def synthesize_speech(text: str, language: str = "en") -> str:
             raise Exception("SARVAM_API_KEY is not set.")
 
         # Determine language code for Sarvam TTS
-        sarvam_lang = "hi-IN" if language in ["hi", "hinglish"] else "en-IN"
+        if language in ["hi", "hinglish"]:
+            sarvam_lang = "hi-IN"
+        elif language == "gu":
+            sarvam_lang = "gu-IN"
+        else:
+            sarvam_lang = "en-IN"
         
         # Initialize Sarvam AI Client
         client = SarvamAI(api_subscription_key=settings.sarvam_api_key)
