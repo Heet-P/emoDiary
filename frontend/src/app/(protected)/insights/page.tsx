@@ -5,6 +5,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
     LineChart,
     Line,
@@ -34,6 +35,96 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const PIE_COLORS = ["#064e3b", "#10b981", "#d97706", "#0284c7", "#7c3aed", "#db2777"];
 const HEATMAP_COLORS = ["#e5e7eb", "#d1fae5", "#6ee7b7", "#10b981", "#047857"];
 
+const THERAPISTS = [
+    {
+        name: "Dr. Priya Sharma",
+        specialty: "Clinical Psychologist",
+        clinic: "MindSpace Wellness Centre",
+        address: "Koramangala, Bengaluru",
+        phone: "+91 98400 11223",
+        email: "priya@mindspacewellness.in",
+        lang: "English, Hindi, Kannada",
+        avatar: "P",
+        color: "#10b981",
+        experience: "9 Years Experience",
+        fee: "₹1,200 / session",
+        availability: "Mon–Sat, 10am–6pm",
+        regNo: "RCI/KA/2015/04821",
+        bio: "Dr. Priya specialises in anxiety, depression, and trauma using evidence-based CBT and mindfulness-based approaches. She offers both in-person and online sessions.",
+        specializations: ["Anxiety", "Depression", "Trauma", "CBT", "Mindfulness"],
+    },
+    {
+        name: "Dr. Arjun Mehta",
+        specialty: "Psychiatrist & Therapist",
+        clinic: "CalmPath Clinic",
+        address: "Andheri West, Mumbai",
+        phone: "+91 99100 44556",
+        email: "arjun@calmpathclinic.com",
+        lang: "English, Hindi, Marathi",
+        avatar: "A",
+        color: "#0284c7",
+        experience: "14 Years Experience",
+        fee: "₹1,800 / session",
+        availability: "Tue–Sat, 11am–7pm",
+        regNo: "MMC/MH/2010/11203",
+        bio: "Dr. Arjun provides psychiatry and psychotherapy for mood disorders, OCD, and bipolar disorder. He takes a holistic, patient-first approach to mental wellness.",
+        specializations: ["Mood Disorders", "OCD", "Bipolar", "Psychotherapy", "Medication Management"],
+    },
+    {
+        name: "Dr. Sneha Iyer",
+        specialty: "Counselling Psychologist",
+        clinic: "SereneMind Therapy",
+        address: "T. Nagar, Chennai",
+        phone: "+91 88004 77889",
+        email: "sneha@serenemind.in",
+        lang: "English, Tamil, Telugu",
+        avatar: "S",
+        color: "#7c3aed",
+        experience: "7 Years Experience",
+        fee: "₹1,000 / session",
+        availability: "Mon–Fri, 9am–5pm",
+        regNo: "RCI/TN/2017/08831",
+        bio: "Dr. Sneha focuses on relationship counselling, grief, and life transitions. Her warm, empathetic style helps clients build resilience and emotional clarity.",
+        specializations: ["Relationships", "Grief", "Life Transitions", "Self-esteem", "Stress"],
+    },
+    {
+        name: "Dr. Rohan Desai",
+        specialty: "Cognitive Behavioural Therapist",
+        clinic: "Equilibrium Centre",
+        address: "Satellite, Ahmedabad",
+        phone: "+91 91500 22334",
+        email: "rohan@equilibriumctr.com",
+        lang: "English, Hindi, Gujarati",
+        avatar: "R",
+        color: "#d97706",
+        experience: "11 Years Experience",
+        fee: "₹1,500 / session",
+        availability: "Mon–Sat, 10am–7pm",
+        regNo: "RCI/GJ/2013/06612",
+        bio: "Dr. Rohan is an expert in CBT for phobias, panic disorder, and workplace stress. He brings a structured, goal-oriented approach to every session.",
+        specializations: ["Phobias", "Panic Disorder", "Workplace Stress", "CBT", "Social Anxiety"],
+    },
+    {
+        name: "Dr. Nidhi Kapoor",
+        specialty: "Child & Adult Therapist",
+        clinic: "Aasha Wellbeing Hub",
+        address: "Sector 18, Noida",
+        phone: "+91 93700 55667",
+        email: "nidhi@aashawellbeing.in",
+        lang: "English, Hindi",
+        avatar: "N",
+        color: "#db2777",
+        experience: "10 Years Experience",
+        fee: "₹1,300 / session",
+        availability: "Mon–Fri, 10am–6pm",
+        regNo: "RCI/UP/2014/09987",
+        bio: "Dr. Nidhi works with children, adolescents, and adults dealing with ADHD, emotional dysregulation, and family conflict using play therapy and CBT.",
+        specializations: ["ADHD", "Emotional Dysregulation", "Family Conflict", "Play Therapy", "Adolescents"],
+    },
+] as const;
+
+type Therapist = typeof THERAPISTS[number];
+
 export default function InsightsPage() {
     const { t, language } = useLanguage();
 
@@ -55,6 +146,7 @@ export default function InsightsPage() {
     });
     const [loading, setLoading] = useState(true);
     const [calculatingScore, setCalculatingScore] = useState(false);
+    const [selectedTherapist, setSelectedTherapist] = useState<Therapist | null>(null);
 
     const locale = language === "hi" ? "hi-IN" : "en-US";
 
@@ -693,9 +785,9 @@ export default function InsightsPage() {
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.85 }}
-                    className="space-y-4"
+                    className="space-y-5"
                 >
-                    {/* Header */}
+                    {/* Section header */}
                     <div className="flex items-center gap-3 px-1">
                         <div className="flex-1 h-px bg-red-200/60" />
                         <div className="flex items-center gap-2 text-xs font-semibold text-red-700 uppercase tracking-widest whitespace-nowrap">
@@ -711,67 +803,40 @@ export default function InsightsPage() {
                             : "Based on your score, we recommend reaching out to one of our partner therapists for professional support."}
                     </p>
 
+                    {/* ── Referral Code Banner ── */}
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-gradient-to-r from-emerald-50 to-amber-50 border-2 border-dashed border-[#10b981]/40 rounded-xl px-6 py-4">
+                        <div className="flex items-center gap-3">
+                            <span className="material-symbols-outlined text-[#10b981] text-2xl">local_offer</span>
+                            <div>
+                                <p className="text-xs font-bold text-[#064e3b] uppercase tracking-widest">
+                                    {language === "hi" ? "आपका विशेष रेफरल कोड" : "Your Exclusive Referral Code"}
+                                </p>
+                                <p className="text-[11px] text-[#8ca69e] mt-0.5">
+                                    {language === "hi"
+                                        ? "क्लिनिक पर यह कोड दिखाएं और 15–20% की छूट पाएं"
+                                        : "Show this code at the clinic to receive 15–20% off your first session"}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 bg-white border border-[#10b981]/30 rounded-lg px-5 py-2.5 shadow-sm flex-shrink-0">
+                            <span className="text-xl font-black tracking-widest text-[#064e3b]" style={{ fontFamily: "monospace" }}>EmoDiary</span>
+                            <button
+                                onClick={() => { navigator.clipboard?.writeText("EmoDiary"); }}
+                                className="text-[#8ca69e] hover:text-[#064e3b] transition-colors"
+                                title="Copy code"
+                            >
+                                <span className="material-symbols-outlined text-base">content_copy</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* ── Therapist Cards ── */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {[
-                            {
-                                name: "Dr. Priya Sharma",
-                                specialty: "Clinical Psychologist",
-                                clinic: "MindSpace Wellness Centre",
-                                address: "Koramangala, Bengaluru",
-                                phone: "+91 98400 11223",
-                                email: "priya@mindspacewellness.in",
-                                lang: "English, Hindi, Kannada",
-                                avatar: "P",
-                                color: "#10b981",
-                            },
-                            {
-                                name: "Dr. Arjun Mehta",
-                                specialty: "Psychiatrist & Therapist",
-                                clinic: "CalmPath Clinic",
-                                address: "Andheri West, Mumbai",
-                                phone: "+91 99100 44556",
-                                email: "arjun@calmpathclinic.com",
-                                lang: "English, Hindi, Marathi",
-                                avatar: "A",
-                                color: "#0284c7",
-                            },
-                            {
-                                name: "Dr. Sneha Iyer",
-                                specialty: "Counselling Psychologist",
-                                clinic: "SereneMind Therapy",
-                                address: "T. Nagar, Chennai",
-                                phone: "+91 88004 77889",
-                                email: "sneha@serenemind.in",
-                                lang: "English, Tamil, Telugu",
-                                avatar: "S",
-                                color: "#7c3aed",
-                            },
-                            {
-                                name: "Dr. Rohan Desai",
-                                specialty: "Cognitive Behavioural Therapist",
-                                clinic: "Equilibrium Centre",
-                                address: "Satellite, Ahmedabad",
-                                phone: "+91 91500 22334",
-                                email: "rohan@equilibriumctr.com",
-                                lang: "English, Hindi, Gujarati",
-                                avatar: "R",
-                                color: "#d97706",
-                            },
-                            {
-                                name: "Dr. Nidhi Kapoor",
-                                specialty: "Child & Adult Therapist",
-                                clinic: "Aasha Wellbeing Hub",
-                                address: "Sector 18, Noida",
-                                phone: "+91 93700 55667",
-                                email: "nidhi@aashawellbeing.in",
-                                lang: "English, Hindi",
-                                avatar: "N",
-                                color: "#db2777",
-                            },
-                        ].map((doc, i) => (
-                            <div
+                        {THERAPISTS.map((doc, i) => (
+                            <button
                                 key={i}
-                                className="bg-white/70 backdrop-blur-md rounded-xl border border-[#8ca69e]/20 shadow-sm p-5 flex flex-col gap-3 hover:shadow-md transition-all"
+                                onClick={() => setSelectedTherapist(doc)}
+                                className="bg-white/70 backdrop-blur-md rounded-xl border border-[#8ca69e]/20 shadow-sm p-5 flex flex-col gap-3 hover:shadow-md hover:border-[#10b981]/40 transition-all text-left group"
                             >
                                 {/* Avatar + Name */}
                                 <div className="flex items-center gap-3">
@@ -781,10 +846,11 @@ export default function InsightsPage() {
                                     >
                                         {doc.avatar}
                                     </div>
-                                    <div>
-                                        <p className="text-sm font-semibold text-[#064e3b] leading-tight">{doc.name}</p>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-[#064e3b] leading-tight truncate">{doc.name}</p>
                                         <p className="text-[11px] text-[#8ca69e]">{doc.specialty}</p>
                                     </div>
+                                    <span className="material-symbols-outlined text-[#8ca69e] text-base opacity-0 group-hover:opacity-100 transition-opacity">open_in_full</span>
                                 </div>
 
                                 {/* Clinic info */}
@@ -803,24 +869,12 @@ export default function InsightsPage() {
                                     </div>
                                 </div>
 
-                                {/* Contact buttons */}
-                                <div className="flex gap-2 mt-1">
-                                    <a
-                                        href={`tel:${doc.phone.replace(/\s/g, "")}`}
-                                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#064e3b]/8 border border-[#064e3b]/15 text-[#064e3b] text-xs font-medium hover:bg-[#064e3b]/15 transition-colors"
-                                    >
-                                        <span className="material-symbols-outlined text-[14px]">call</span>
-                                        Call
-                                    </a>
-                                    <a
-                                        href={`mailto:${doc.email}`}
-                                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#8ca69e]/10 border border-[#8ca69e]/20 text-[#8ca69e] text-xs font-medium hover:bg-[#8ca69e]/20 transition-colors"
-                                    >
-                                        <span className="material-symbols-outlined text-[14px]">mail</span>
-                                        Email
-                                    </a>
+                                {/* Fee pill */}
+                                <div className="flex items-center justify-between pt-1 border-t border-[#8ca69e]/10">
+                                    <span className="text-[11px] font-semibold text-[#064e3b]">{doc.fee}</span>
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-[#10b981] border border-emerald-100 font-medium">View details →</span>
                                 </div>
-                            </div>
+                            </button>
                         ))}
                     </div>
 
@@ -831,6 +885,110 @@ export default function InsightsPage() {
                     </p>
                 </motion.div>
             )}
+
+            {/* ── Therapist Detail Modal ── */}
+            {selectedTherapist && typeof window !== "undefined" && createPortal(
+                <div
+                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                    onClick={() => setSelectedTherapist(null)}
+                >
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+                    >
+                        {/* Modal header */}
+                        <div className="p-6 pb-4" style={{ background: `linear-gradient(135deg, ${selectedTherapist.color}18, ${selectedTherapist.color}08)` }}>
+                            <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div
+                                        className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md"
+                                        style={{ backgroundColor: selectedTherapist.color }}
+                                    >
+                                        {selectedTherapist.avatar}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base font-bold text-[#064e3b]">{selectedTherapist.name}</h3>
+                                        <p className="text-xs text-[#8ca69e] mt-0.5">{selectedTherapist.specialty}</p>
+                                        <p className="text-xs font-semibold mt-1" style={{ color: selectedTherapist.color }}>{selectedTherapist.experience}</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setSelectedTherapist(null)} className="text-[#8ca69e] hover:text-[#064e3b] transition-colors p-1">
+                                    <span className="material-symbols-outlined">close</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Modal body */}
+                        <div className="px-6 pb-6 space-y-4">
+                            {/* About */}
+                            <p className="text-sm text-[#4a6e5a] leading-relaxed">{selectedTherapist.bio}</p>
+
+                            {/* Details grid */}
+                            <div className="grid grid-cols-2 gap-3">
+                                {[
+                                    { icon: "apartment", label: "Clinic", value: selectedTherapist.clinic },
+                                    { icon: "location_on", label: "Location", value: selectedTherapist.address },
+                                    { icon: "translate", label: "Languages", value: selectedTherapist.lang },
+                                    { icon: "schedule", label: "Availability", value: selectedTherapist.availability },
+                                    { icon: "payments", label: "Session Fee", value: selectedTherapist.fee },
+                                    { icon: "verified", label: "Registration", value: selectedTherapist.regNo },
+                                ].map((item, i) => (
+                                    <div key={i} className="bg-[#f8faf9] rounded-lg p-3">
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                            <span className="material-symbols-outlined text-[12px] text-[#8ca69e]">{item.icon}</span>
+                                            <p className="text-[9px] font-bold uppercase tracking-widest text-[#8ca69e]">{item.label}</p>
+                                        </div>
+                                        <p className="text-xs font-semibold text-[#064e3b] leading-snug">{item.value}</p>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Specializations */}
+                            <div>
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-[#8ca69e] mb-2">Specializations</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedTherapist.specializations.map((s, i) => (
+                                        <span key={i} className="text-[10px] px-2.5 py-1 rounded-full bg-emerald-50 text-[#064e3b] border border-emerald-100 font-medium">{s}</span>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Referral code reminder */}
+                            <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                                <span className="material-symbols-outlined text-amber-600 text-lg">local_offer</span>
+                                <div>
+                                    <p className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">Use referral code for 15–20% off</p>
+                                    <p className="text-base font-black tracking-widest text-amber-900" style={{ fontFamily: "monospace" }}>EmoDiary</p>
+                                </div>
+                            </div>
+
+                            {/* CTA buttons */}
+                            <div className="flex gap-2 pt-1">
+                                <a
+                                    href={`tel:${selectedTherapist.phone.replace(/\s/g, "")}`}
+                                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#064e3b] text-white text-xs font-semibold hover:bg-[#0a7c5c] transition-colors"
+                                >
+                                    <span className="material-symbols-outlined text-sm">call</span>
+                                    Call Now
+                                </a>
+                                <a
+                                    href={`mailto:${selectedTherapist.email}?subject=Appointment Request — emoDiary Referral (EmoDiary)`}
+                                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-[#8ca69e]/30 text-[#8ca69e] text-xs font-semibold hover:bg-[#8ca69e]/10 transition-colors"
+                                >
+                                    <span className="material-symbols-outlined text-sm">mail</span>
+                                    Email
+                                </a>
+                            </div>
+                        </div>
+                    </motion.div>
+                </div>,
+                document.body
+            )}
+
 
         </div>
     );
