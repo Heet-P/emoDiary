@@ -24,8 +24,10 @@ export default function TalkPage() {
     const [loading, setLoading] = useState(false);
     const [starting, setStarting] = useState(false);
     const [ending, setEnding] = useState(false);
+    const [showSavePrompt, setShowSavePrompt] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const router = require("next/navigation").useRouter();
 
     // Continuous Voice State
     const [voiceState, setVoiceState] = useState<VoiceState>("idle");
@@ -308,19 +310,54 @@ export default function TalkPage() {
         }
     };
 
-    const endSession = async () => {
+    const handleEndSessionClick = () => {
         if (!sessionId) return;
         stopContinuousVoice();
+        
+        // Only prompt to save if they actually sent a message (more than just the AI greeting)
+        if (messages.length > 1) {
+            setShowSavePrompt(true);
+        } else {
+            endSession(false);
+        }
+    };
+
+    const endSession = async (saveAsJournal: boolean) => {
+        if (!sessionId) return;
         setEnding(true);
+        setShowSavePrompt(false);
+        
         try {
             const token = await getToken();
-            await fetch(`${API_BASE}/api/chat/session/${sessionId}`, {
-                method: "DELETE",
+            
+            // End the session stats natively
+            await fetch(`${API_BASE}/api/chat/session/${sessionId}/end`, {
+                method: "POST",
                 headers: { Authorization: `Bearer ${token}` },
             });
+
+            if (saveAsJournal) {
+                const toastId = toast.loading(language === 'hi' ? "जर्नल में बदल रहे हैं..." : "Converting to Journal...");
+                const res = await fetch(`${API_BASE}/api/chat/session/${sessionId}/convert_to_journal`, {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                
+                if (res.ok) {
+                    toast.success(language === 'hi' ? "जर्नल के रूप में सहेजा गया!" : "Saved as Journal Entry!", { id: toastId });
+                    setSessionId(null);
+                    setMessages([]);
+                    router.push("/journal");
+                    return;
+                } else {
+                    toast.error(language === 'hi' ? "सहेजने में विफल" : "Failed to convert", { id: toastId });
+                }
+            } else {
+                toast.success(language === 'hi' ? "बातचीत समाप्त हुई" : "Conversation ended");
+            }
+            
             setSessionId(null);
             setMessages([]);
-            toast.success(language === 'hi' ? "बातचीत सहेज ली गई" : "Conversation saved");
         } catch (error) {
             console.error("Failed to end session:", error);
             toast.error(t.common.error);
@@ -440,7 +477,7 @@ export default function TalkPage() {
                     )}
                 </div>
                 <button
-                    onClick={endSession}
+                    onClick={handleEndSessionClick}
                     disabled={ending}
                     className="text-xs text-[#8ca69e] hover:text-destructive transition-colors px-3 py-1.5 rounded-lg hover:bg-destructive/5"
                 >
@@ -536,6 +573,42 @@ export default function TalkPage() {
                     {voiceState !== "idle" ? "Hands-free continuous mode is active." : "AI can make mistakes. Consider checking important information."}
                 </p>
             </div>
+            {/* Save Prompt Modal */}
+            {showSavePrompt && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                    <div className="bg-[#fefcfa] rounded-xl border border-[#8ca69e]/20 p-8 max-w-sm w-full shadow-2xl fade-in-up">
+                        <div className="text-center space-y-4">
+                            <span className="material-symbols-outlined text-4xl text-[#064e3b] mb-2">
+                                import_contacts
+                            </span>
+                            <h3 className="serif-text text-xl font-medium">
+                                {language === 'hi' ? "इस बातचीत को जर्नल में बदलें?" : "Convert to Journal?"}
+                            </h3>
+                            <p className="text-sm text-[#8ca69e] leading-relaxed">
+                                {language === 'hi' 
+                                    ? "हम इस बातचीत का सारांश तैयार करके इसे आपकी डायरी में नए टैग्स के साथ सेव कर सकते हैं।" 
+                                    : "We can summarize this conversation and save it to your diary with AI generated tags."}
+                            </p>
+                            <div className="flex flex-col gap-3 pt-4">
+                                <button
+                                    onClick={() => endSession(true)}
+                                    disabled={ending}
+                                    className="w-full px-4 py-3 rounded-lg bg-[#064e3b] text-[#fefcfa] text-sm font-medium hover:bg-[#086a51] transition-colors disabled:opacity-50"
+                                >
+                                    {ending ? "Saving..." : (language === 'hi' ? "हाँ, डायरी में सहेजें" : "Yes, save to Diary")}
+                                </button>
+                                <button
+                                    onClick={() => endSession(false)}
+                                    disabled={ending}
+                                    className="w-full px-4 py-3 rounded-lg border border-[#8ca69e]/20 text-[#8ca69e] text-sm font-medium hover:bg-[#8ca69e]/10 transition-colors"
+                                >
+                                    {language === 'hi' ? "नहीं, बस छोड़ दें" : "No, just discard"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

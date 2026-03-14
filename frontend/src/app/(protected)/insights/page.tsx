@@ -33,7 +33,9 @@ export default function InsightsPage() {
     const [trends, setTrends] = useState<any[]>([]);
     const [emotionDist, setEmotionDist] = useState<any[]>([]);
     const [insights, setInsights] = useState<string>("");
+    const [therapistScore, setTherapistScore] = useState<{ score: number | null, justification: string | null }>({ score: null, justification: null });
     const [loading, setLoading] = useState(true);
+    const [calculatingScore, setCalculatingScore] = useState(false);
 
     const locale = language === 'hi' ? 'hi-IN' : 'en-US';
 
@@ -67,6 +69,16 @@ export default function InsightsPage() {
                     setInsights(data.insights);
                 }
 
+                // Fetch Therapist Score
+                const scoreRes = await fetch(`${API_BASE}/api/analytics/therapist-score`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+
+                if (scoreRes.ok) {
+                    const data = await scoreRes.json();
+                    setTherapistScore({ score: data.therapist_score, justification: data.therapist_justification });
+                }
+
             } catch (error) {
                 console.error("Failed to fetch analytics:", error);
                 toast.error(t.common.error);
@@ -77,6 +89,35 @@ export default function InsightsPage() {
 
         fetchData();
     }, [language, t.common.error]);
+
+    const handleCalculateScore = async () => {
+        setCalculatingScore(true);
+        const toastId = toast.loading(language === "hi" ? "स्कोर की गणना की जा रही है..." : "Calculating score...");
+        
+        try {
+            const supabase = createClient();
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            
+            if (!token) throw new Error("No token");
+
+            const res = await fetch(`${API_BASE}/api/analytics/therapist-score`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (!res.ok) throw new Error("Failed to calculate score");
+
+            const data = await res.json();
+            setTherapistScore({ score: data.therapist_score, justification: data.therapist_justification });
+            toast.success(language === "hi" ? "स्कोर अपडेट किया गया" : "Score updated", { id: toastId });
+        } catch (error) {
+            console.error(error);
+            toast.error(t.common.error, { id: toastId });
+        } finally {
+            setCalculatingScore(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -224,6 +265,67 @@ export default function InsightsPage() {
                     <div className="mt-6 pt-4 border-t border-white/10 flex items-center gap-2 text-xs opacity-60">
                         <span className="material-symbols-outlined text-sm">auto_awesome</span>
                         {t.insights.aiFooter}
+                    </div>
+                </motion.div>
+
+                {/* Therapist Score Card */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="md:col-span-2 bg-white/60 backdrop-blur-sm border border-[#8ca69e]/20 rounded-xl p-6 shadow-sm"
+                >
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                        <div className="flex-1">
+                            <h2 className="text-lg font-medium text-[#064e3b] mb-2 flex items-center gap-2">
+                                <span className="material-symbols-outlined">health_and_safety</span>
+                                {language === "hi" ? "थेरेपिस्ट आवश्यकता स्कोर" : "Therapist Need Score"}
+                            </h2>
+                            <p className="text-sm text-[#8ca69e] max-w-xl">
+                                {language === "hi" 
+                                    ? "एआई द्वारा आपके हाल के जर्नल्स का विश्लेषण करके 0-100 का स्कोर दिया जाता है (0 = एकदम स्वस्थ, 100 = उच्च डिस्ट्रेस)।"
+                                    : "AI-computed score from 0-100 based on your recent 14 days of entries (0 = Perfect health, 100 = High distress)."
+                                }
+                            </p>
+                            
+                            {therapistScore.score !== null && (
+                                <div className="mt-4">
+                                    <div className="text-4xl font-semibold mb-2 flex items-end gap-3">
+                                        <span className={therapistScore.score > 75 ? "text-red-600" : therapistScore.score > 50 ? "text-yellow-600" : "text-[#064e3b]"}>
+                                            {therapistScore.score}/100
+                                        </span>
+                                        {therapistScore.score > 75 && (
+                                            <span className="text-sm px-2 py-1 bg-red-100 text-red-700 rounded-md mb-1 font-medium flex items-center gap-1">
+                                                <span className="material-symbols-outlined text-sm text-red-700">warning</span>
+                                                {language === "hi" ? "पेशेवर मदद लें" : "Seek Professional Help"}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-sm text-foreground/80 italic mt-2 border-l-2 border-[#8ca69e]/30 pl-3 py-1">
+                                        "{therapistScore.justification}"
+                                    </p>
+                                </div>
+                            )}
+                            
+                            {therapistScore.score === null && (
+                                <p className="text-sm text-[#8ca69e] mt-4 italic">
+                                    {language === "hi" ? "कोई स्कोर उपलब्ध नहीं है।" : "No score available yet."}
+                                </p>
+                            )}
+                        </div>
+                        
+                        <div className="flex-shrink-0">
+                            <button
+                                onClick={handleCalculateScore}
+                                disabled={calculatingScore}
+                                className="px-6 py-2.5 bg-[#064e3b] text-white text-sm font-medium rounded-lg hover:bg-[#064e3b]/90 transition-all disabled:opacity-50 flex items-center gap-2 shadow-sm"
+                            >
+                                <span className={`material-symbols-outlined text-lg ${calculatingScore ? 'animate-spin' : ''}`}>
+                                    {calculatingScore ? 'sync' : 'calculate'}
+                                </span>
+                                {language === "hi" ? "स्कोर की गणना करें" : "Calculate Score"}
+                            </button>
+                        </div>
                     </div>
                 </motion.div>
             </div>

@@ -125,3 +125,18 @@ async def end_chat_session(
     if not result:
         raise HTTPException(status_code=404, detail="Session not found")
     return {"status": "ended", "duration_s": result.get("duration_s", 0)}
+
+
+@router.post("/session/{session_id}/convert_to_journal")
+async def convert_session_to_journal(
+    session_id: str,
+    user_id: str = Depends(get_current_user),
+):
+    """Summarize a chat session and save it as a journal entry."""
+    try:
+        entry = await chat_service.convert_session_to_journal(user_id, session_id)
+        return entry
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to convert session: {str(e)}")

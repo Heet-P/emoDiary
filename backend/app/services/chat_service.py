@@ -13,6 +13,7 @@ from app.prompts.system_prompts import (
     is_prompt_injection,
     INJECTION_REFUSAL,
 )
+from app.services import journal_service
 
 
 def _get_groq_client() -> Groq:
@@ -241,3 +242,80 @@ async def end_session(user_id: str, session_id: str) -> Optional[dict]:
         return None
 
     return update_result.data[0]
+
+
+async def convert_session_to_journal(user_id: str, session_id: str) -> dict:
+    """Summarize a chat session and save it as a journal entry."""
+    supabase = get_supabase_client()
+
+    # Get session
+    session_check = (
+        supabase.table("chat_sessions")
+        .select("id, language")
+        .eq("id", session_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+
+    if not session_check.data:
+        raise ValueError("Session not found or not owned by user")
+
+    session_lang = session_check.data[0].get("language", "en")
+
+    # Get messages
+    messages = await get_session_messages(user_id, session_id)
+    if len(messages) < 2:
+        raise ValueError("Not enough messages to summarize.")
+
+    # Format transcript
+    transcript = "\n".join(
+        f"{m['role'].capitalize()}: {m['content']}" for m in messages
+    )
+
+    # Ask Groq to summarize
+    try:
+        client = _get_groq_client()
+        prompt = (
+            "You are a helpful assistant. Read the following transcript of a conversation "
+            "between a user and the emoDiary AI companion. Summarize the conversation into a well-written, "
+            "first-person journal entry from the perspective of the user (e.g., 'Today I talked to emoDiary about...'). "
+            "Keep it between 2 to 4 paragraphs. Do not include any tags, titles, or JSON. Just write the raw text."
+        )
+
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": transcript[:5000]}
+            ],
+            temperature=0.5,
+            max_tokens=600,
+        )
+        summary = response.choices[0].message.content.strip()
+
+        # Generate a title
+        title_response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "user", "content": f"Write a short, 3 to 5 word title for this journal entry. Do not use quotes or prefixes. Entry: {summary[:500]}"}
+            ],
+            temperature=0.6,
+            max_tokens=20,
+        )
+        title = title_response.choices[0].message.content.strip().replace('"', '')
+
+    except Exception as e:
+        print(f"Error summarizing session: {e}")
+        raise ValueError("Failed to summarize the conversation.")
+
+    # Create journal entry (this will automatically trigger auto-tagging via journal_service)
+    entry = await journal_service.create_entry(
+        user_id=user_id,
+        title=title,
+        content=summary,
+    )
+
+    # Mark session as saved
+    supabase.table("chat_sessions").update({"saved": True}).eq("id", session_id).execute()
+
+    return entry
