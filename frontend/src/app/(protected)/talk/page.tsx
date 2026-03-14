@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useLanguage } from "@/context/language-context";
@@ -15,6 +14,8 @@ interface Message {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+type VoiceState = "idle" | "listening" | "processing" | "speaking";
+
 export default function TalkPage() {
     const { t, language, setLanguage } = useLanguage();
     const [messages, setMessages] = useState<Message[]>([]);
@@ -26,10 +27,15 @@ export default function TalkPage() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
-    // Voice State
-    const [isRecording, setIsRecording] = useState(false);
+    // Continuous Voice State
+    const [voiceState, setVoiceState] = useState<VoiceState>("idle");
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const silenceStartRef = useRef<number | null>(null);
+    const vadFrameRef = useRef<number | null>(null);
+    const streamRef = useRef<MediaStream | null>(null);
+    const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -68,7 +74,6 @@ export default function TalkPage() {
                 { role: "assistant", content: data.greeting },
             ]);
             toast.success(language === "en" ? "Session started" : "सत्र शुरू हो गया");
-            // Focus input after a short delay to allow render
             setTimeout(() => inputRef.current?.focus(), 100);
         } catch (error) {
             console.error("Failed to start session:", error);
@@ -79,7 +84,7 @@ export default function TalkPage() {
     };
 
     const sendMessage = async () => {
-        if (!input.trim() || !sessionId || loading) return;
+        if (!input.trim() || !sessionId || loading || voiceState !== "idle") return;
 
         const userMessage = input.trim();
         setInput("");
@@ -105,11 +110,10 @@ export default function TalkPage() {
 
             const data = await res.json();
             setMessages((prev) => [...prev, { role: "assistant", content: data.response }]);
-            setLoading(false); // Done locally
+            setLoading(false);
 
-            // Play audio if available
             if (data.audio_base64) {
-                const audio = new Audio(`data:audio/mp3;base64,${data.audio_base64}`);
+                const audio = new Audio(`data:audio/wav;base64,${data.audio_base64}`);
                 audio.play();
             }
 
@@ -127,10 +131,34 @@ export default function TalkPage() {
         }
     };
 
-    // Voice Functions
-    const startRecording = async () => {
+    // Continuous Voice Loop implementing VAD (Voice Activity Detection)
+    const cleanupVoiceResources = () => {
+        if (vadFrameRef.current) cancelAnimationFrame(vadFrameRef.current);
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+            mediaRecorderRef.current.stop();
+        }
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(t => t.stop());
+            streamRef.current = null;
+        }
+        if (audioContextRef.current) {
+            audioContextRef.current.close().catch(() => { });
+            audioContextRef.current = null;
+        }
+        if (currentAudioRef.current) {
+            currentAudioRef.current.pause();
+            currentAudioRef.current = null;
+        }
+    };
+
+    const startListeningLoop = async () => {
+        if (!sessionId) return;
+        cleanupVoiceResources(); // ensure clean state
+        setVoiceState("listening");
+
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            streamRef.current = stream;
             const mediaRecorder = new MediaRecorder(stream);
             mediaRecorderRef.current = mediaRecorder;
             audioChunksRef.current = [];
@@ -143,27 +171,68 @@ export default function TalkPage() {
 
             mediaRecorder.onstop = () => {
                 const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                sendVoiceMessage(audioBlob);
+                // If it wasn't manually aborted (idle state), process it
+                if (audioChunksRef.current.length > 0 && streamRef.current !== null) {
+                    sendVoiceMessage(audioBlob);
+                }
             };
 
+            // Setup VAD
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            const audioContext = new AudioContextClass();
+            audioContextRef.current = audioContext;
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 512;
+            analyser.minDecibels = -60;
+
+            const source = audioContext.createMediaStreamSource(stream);
+            source.connect(analyser);
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            silenceStartRef.current = null;
+            const checkSilence = () => {
+                if (mediaRecorder.state !== "recording") return;
+
+                analyser.getByteFrequencyData(dataArray);
+                const sum = dataArray.reduce((a, b) => a + b, 0);
+                const average = sum / bufferLength;
+
+                if (average > 5) { // Highly sensitive Is Speaking threshold
+                    silenceStartRef.current = null;
+                } else {
+                    if (silenceStartRef.current === null) {
+                        silenceStartRef.current = Date.now();
+                    } else if (Date.now() - silenceStartRef.current > 3000) {
+                        // 3 seconds of silence -> Stop recording and trigger sending
+                        mediaRecorder.stop();
+                        if (vadFrameRef.current) cancelAnimationFrame(vadFrameRef.current);
+                        return; // Exit loop
+                    }
+                }
+                vadFrameRef.current = requestAnimationFrame(checkSilence);
+            };
+
+            // Standard start captures a single Blob when stopped
             mediaRecorder.start();
-            setIsRecording(true);
+            vadFrameRef.current = requestAnimationFrame(checkSilence);
+
         } catch (error) {
-            console.error("Error accessing microphone:", error);
-            toast.error("Microphone access denied");
+            console.error("Error accessing mic:", error);
+            setVoiceState("idle");
+            toast.error("Microphone access denied. Please check permissions.");
         }
     };
 
-    const stopRecording = () => {
-        if (mediaRecorderRef.current && isRecording) {
-            mediaRecorderRef.current.stop();
-            setIsRecording(false);
-        }
+    const stopContinuousVoice = () => {
+        setVoiceState("idle");
+        cleanupVoiceResources();
     };
 
     const sendVoiceMessage = async (audioBlob: Blob) => {
         if (!sessionId) return;
-        setLoading(true);
+        setVoiceState("processing");
 
         const formData = new FormData();
         formData.append("audio", audioBlob, "recording.webm");
@@ -184,28 +253,64 @@ export default function TalkPage() {
 
             const data = await res.json();
 
-            // Add user transcript
-            setMessages((prev) => [...prev, { role: "user", content: data.user_transcript }]);
+            // Add user transcript if they actually spoke words
+            if (data.user_transcript && data.user_transcript.trim().length > 0) {
+                setMessages((prev) => [...prev, { role: "user", content: data.user_transcript }]);
+            }
 
             // Add AI response
-            setMessages((prev) => [...prev, { role: "assistant", content: data.ai_response }]);
+            if (data.ai_response && data.ai_response.trim().length > 0) {
+                setMessages((prev) => [...prev, { role: "assistant", content: data.ai_response }]);
+            }
 
-            // Play audio
+            // Play audio and auto-continue loop
             if (data.ai_audio) {
-                const audio = new Audio(`data:audio/mp3;base64,${data.ai_audio}`);
-                audio.play();
+                setVoiceState("speaking");
+                const audio = new Audio(`data:audio/wav;base64,${data.ai_audio}`);
+                currentAudioRef.current = audio;
+
+                audio.onended = () => {
+                    // Start listening again only if user didn't hit stop
+                    setVoiceState((current) => {
+                        if (current === "speaking") {
+                            setTimeout(startListeningLoop, 100);
+                            return "listening";
+                        }
+                        return current;
+                    });
+                };
+
+                audio.play().catch(e => {
+                    console.error("Audio playback blocked", e);
+                    setVoiceState("idle");
+                });
+            } else {
+                // Fallback if no audio (e.g. user was just silent)
+                setVoiceState((current) => {
+                    if (current === "processing") {
+                        setTimeout(startListeningLoop, 100);
+                        return "listening";
+                    }
+                    return current;
+                });
             }
 
         } catch (error) {
             console.error("Voice message failed:", error);
-            toast.error(t.common.error);
-        } finally {
-            setLoading(false);
+            // Ignore tiny noises that transcribe fail, just go back to listening
+            setVoiceState((current) => {
+                if (current === "processing") {
+                    setTimeout(startListeningLoop, 100);
+                    return "listening";
+                }
+                return current;
+            });
         }
     };
 
     const endSession = async () => {
         if (!sessionId) return;
+        stopContinuousVoice();
         setEnding(true);
         try {
             const token = await getToken();
@@ -222,6 +327,17 @@ export default function TalkPage() {
         } finally {
             setEnding(false);
         }
+    };
+
+    // Dynamic UI Helpers
+    const isBusy = loading || voiceState === "processing" || voiceState === "speaking";
+
+    const getStatusText = () => {
+        if (voiceState === "listening") return t.talk.listening || "Listening... Start speaking";
+        if (voiceState === "processing") return t.talk.processing || "Thinking...";
+        if (voiceState === "speaking") return t.talk.speaking || "Speaking...";
+        if (loading) return t.talk.processing || "Typing...";
+        return "";
     };
 
     if (!sessionId) {
@@ -256,6 +372,13 @@ export default function TalkPage() {
                             }`}
                     >
                         हिंदी
+                    </button>
+                    <button
+                        onClick={() => setLanguage("hinglish")}
+                        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${language === "hinglish" ? "bg-white shadow text-[#064e3b]" : "text-[#8ca69e] hover:text-[#064e3b]"
+                            }`}
+                    >
+                        Hinglish
                     </button>
                 </div>
 
@@ -293,10 +416,21 @@ export default function TalkPage() {
             {/* Chat Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#8ca69e]/10 bg-white/50 backdrop-blur-sm rounded-t-xl">
                 <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-sm font-medium text-[#064e3b]">
-                        {loading ? t.talk.processing : (isRecording ? t.talk.listening : t.talk.speaking)}
-                    </span>
+                    {(voiceState !== "idle" || loading) ? (
+                        <>
+                            <div className={`w-2 h-2 rounded-full ${voiceState === 'listening' ? 'bg-red-500' : 'bg-green-500'} animate-pulse`} />
+                            <span className="text-sm font-medium text-[#064e3b]">
+                                {getStatusText()}
+                            </span>
+                        </>
+                    ) : (
+                        <>
+                            <div className="w-2 h-2 rounded-full bg-[#8ca69e]/40" />
+                            <span className="text-sm font-medium text-[#8ca69e]">
+                                IDLE
+                            </span>
+                        </>
+                    )}
                 </div>
                 <button
                     onClick={endSession}
@@ -308,7 +442,7 @@ export default function TalkPage() {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
+            <div className={`flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide ${voiceState !== "idle" ? "pb-32" : ""}`}>
                 {messages.map((msg, i) => (
                     <div
                         key={i}
@@ -327,7 +461,7 @@ export default function TalkPage() {
                         </div>
                     </div>
                 ))}
-                {loading && (
+                {(loading || voiceState === "processing") && (
                     <div className="flex justify-start">
                         <div className="bg-white border border-[#8ca69e]/20 rounded-2xl px-5 py-3.5 rounded-bl-none flex gap-1 items-center h-[46px]">
                             <div className="w-1.5 h-1.5 bg-[#8ca69e]/40 rounded-full animate-bounce [animation-delay:-0.3s]" />
@@ -340,18 +474,34 @@ export default function TalkPage() {
             </div>
 
             {/* Input Area */}
-            <div className="p-4 bg-white/50 backdrop-blur-sm border-t border-[#8ca69e]/10 rounded-b-xl">
+            <div className="p-4 bg-white/50 backdrop-blur-sm border-t border-[#8ca69e]/10 rounded-b-xl relative z-10">
+
+                {/* Visualizer Orb for voice mode */}
+                {voiceState !== "idle" && (
+                    <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 flex items-center justify-center pointer-events-none">
+                        <div className={`w-12 h-12 rounded-full transition-all duration-300 shadow-xl flex items-center justify-center
+                            ${voiceState === 'listening' ? 'bg-red-500 scale-110 shadow-red-500/40 animate-pulse' :
+                                voiceState === 'processing' ? 'bg-[#8ca69e] scale-90 opacity-70' :
+                                    'bg-[#064e3b] scale-125 shadow-[#064e3b]/40'}
+                        `}>
+                            <span className="material-symbols-outlined text-white text-xl">
+                                {voiceState === 'listening' ? 'mic' : voiceState === 'processing' ? 'hourglass_empty' : 'graphic_eq'}
+                            </span>
+                        </div>
+                    </div>
+                )}
+
                 <div className="relative flex items-end gap-2 bg-white border border-[#8ca69e]/20 rounded-2xl p-2 shadow-sm focus-within:border-[#8ca69e]/40 focus-within:shadow-md transition-all">
                     <button
-                        onClick={isRecording ? stopRecording : startRecording}
-                        className={`p-3 rounded-xl transition-all ${isRecording
-                            ? "bg-red-50 text-red-500 hover:bg-red-100 animate-pulse"
+                        onClick={voiceState !== "idle" ? stopContinuousVoice : startListeningLoop}
+                        className={`p-3 rounded-xl transition-all ${voiceState !== "idle"
+                            ? "bg-red-50 text-red-600 hover:bg-red-100 shadow-inner"
                             : "text-[#8ca69e] hover:bg-[#8ca69e]/10 hover:text-[#064e3b]"
                             }`}
-                        title={isRecording ? t.talk.tapToStop : t.talk.tapToSpeak}
+                        title={voiceState !== "idle" ? "Stop Live Voice" : "Start Live Voice"}
                     >
                         <span className="material-symbols-outlined text-xl">
-                            {isRecording ? "mic_off" : "mic"}
+                            {voiceState !== "idle" ? "stop_circle" : "mic"}
                         </span>
                     </button>
 
@@ -360,24 +510,26 @@ export default function TalkPage() {
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder={isRecording ? t.talk.listening : "Share what's on your mind…"}
-                        className="flex-1 bg-transparent border-none focus:ring-0 resize-none max-h-32 py-3 text-sm placeholder:text-[#8ca69e]/50"
+                        disabled={voiceState !== "idle" || loading}
+                        placeholder={voiceState !== "idle" ? getStatusText() : "Share what's on your mind…"}
+                        className="flex-1 bg-transparent border-none focus:ring-0 resize-none py-3 text-sm placeholder:text-[#8ca69e]/50 disabled:opacity-50"
                         rows={1}
-                        style={{ minHeight: "44px" }}
+                        style={{ minHeight: "44px", maxHeight: "120px" }}
                     />
 
                     <button
                         onClick={sendMessage}
-                        disabled={!input.trim() || loading}
+                        disabled={!input.trim() || isBusy}
                         className="p-3 rounded-xl bg-[#064e3b] text-[#fefcfa] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#0a7c5c] transition-colors shadow-sm"
                     >
                         <span className="material-symbols-outlined text-xl">send</span>
                     </button>
                 </div>
                 <p className="text-center text-[10px] text-[#8ca69e]/40 mt-3 font-light">
-                    AI can make mistakes. Consider checking important information.
+                    {voiceState !== "idle" ? "Hands-free continuous mode is active." : "AI can make mistakes. Consider checking important information."}
                 </p>
             </div>
         </div>
     );
 }
+

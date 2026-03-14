@@ -33,7 +33,14 @@ async def process_voice_message(
         transcript = await voice_service.transcribe_audio(audio_content)
 
         if not transcript:
-            raise HTTPException(status_code=400, detail="Could not transcribe audio")
+            # User sent silence or empty file
+            return {
+                "user_transcript": "",
+                "ai_response": "",
+                "ai_audio": None,
+                "session_id": session_id,
+                "language": language
+            }
 
         # 2. Get AI response (reusing chat service logic)
         chat_response = await chat_service.send_message(

@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     # Groq AI
     groq_api_key: str = ""
 
-    # Google Cloud TTS
-    google_application_credentials: str = ""
+    # Sarvam AI TTS
+    sarvam_api_key: str = ""
 
     # Upstash Redis
     upstash_redis_url: str = ""

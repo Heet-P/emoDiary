@@ -6,7 +6,6 @@
 import base64
 import os
 from groq import Groq
-from google.cloud import texttospeech
 from app.config import get_settings
 
 
@@ -47,60 +46,64 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
         return transcription.text.strip()
             
     except Exception as e:
-        print(f"Transcription failed: {str(e)}")
         # Start cleanup if it failed before
         if 'temp_audio_path' in locals() and os.path.exists(temp_audio_path):
             os.remove(temp_audio_path)
+            
+        err_msg = str(e).lower()
+        if getattr(e, "status_code", None) == 400 or "valid media file" in err_msg or "could not process file" in err_msg:
+            # Groq rejects pure silence files with 400
+            return ""
+            
+        print(f"Transcription failed: {str(e)}")
         raise e
 
 
+from sarvamai import SarvamAI
+
 async def synthesize_speech(text: str, language: str = "en") -> str:
     """
-    Convert text to speech using Google Cloud TTS.
-    Returns base64 encoded audio string.
+    Convert text to speech using official SarvamAI SDK.
+    Returns base64 encoded WAV audio string.
     """
     try:
         settings = get_settings()
-        # Explicitly set the env var for Google Cloud client library
-        if settings.google_application_credentials:
-            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = settings.google_application_credentials
+        if not settings.sarvam_api_key:
+            raise Exception("SARVAM_API_KEY is not set.")
 
-        # Initialize client
-        # It automatically picks up GOOGLE_APPLICATION_CREDENTIALS from env
-        client = texttospeech.TextToSpeechClient()
-
-        # Set text input
-        synthesis_input = texttospeech.SynthesisInput(text=text)
-
-        # Build the voice request
-        # English: en-US-Journey-F (Female, expressive)
-        # Hindi: hi-IN-Neural2-A (Female, natural)
-        voice_params = {
-            "en": {"language_code": "en-US", "name": "en-US-Chirp3-HD-Zephyr"},
-            "hi": {"language_code": "hi-IN", "name": "hi-IN-Chirp3-HD-Zephyr"},
-        }
+        # Determine language code for Sarvam TTS
+        sarvam_lang = "hi-IN" if language in ["hi", "hinglish"] else "en-IN"
         
-        selected_voice = voice_params.get(language, voice_params["en"])
+        # Initialize Sarvam AI Client
+        client = SarvamAI(api_subscription_key=settings.sarvam_api_key)
+
+        # Use the official SDK to convert text to speech
+        # It handles the base64 conversion and endpoint formatting automatically
+        response = client.text_to_speech.convert(
+            text=text,
+            target_language_code=sarvam_lang,
+            speaker="shubh",
+            pace=1.00,
+            speech_sample_rate=22050,
+            enable_preprocessing=True,
+            model="bulbul:v3"
+        )
         
-        voice = texttospeech.VoiceSelectionParams(
-            language_code=selected_voice["language_code"],
-            name=selected_voice["name"]
-        )
+        # The response is typically a string of base64 audio depending on the SDK version formatting
+        # We need to extract the base64 string
+        # Assuming response returns an object with 'audios' attribute based on their REST spec
+        if hasattr(response, 'audios') and len(response.audios) > 0:
+            return response.audios[0]
+        
+        # If it returns a dict-like object
+        if isinstance(response, dict) and 'audios' in response and len(response['audios']) > 0:
+            return response['audios'][0]
 
-        # Select the type of audio file you want returned
-        audio_config = texttospeech.AudioConfig(
-            audio_encoding=texttospeech.AudioEncoding.MP3,
-            speaking_rate=0.9,
-        )
+        # If it returns the string directly
+        if isinstance(response, str):
+            return response
 
-        # Perform the text-to-speech request    
-        response = client.synthesize_speech(
-            input=synthesis_input, voice=voice, audio_config=audio_config
-        )
-
-        # Encode to base64 for frontend
-        audio_base64 = base64.b64encode(response.audio_content).decode("utf-8")
-        return audio_base64
+        raise Exception("Unrecognized response format from Sarvam AI SDK.")
 
     except Exception as e:
         print(f"TTS synthesis failed: {str(e)}")

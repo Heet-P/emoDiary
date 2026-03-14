@@ -13,6 +13,24 @@ def _get_groq_client() -> Groq:
     settings = get_settings()
     return Groq(api_key=settings.groq_api_key)
 
+
+EMOTION_SCORES = {
+    "Happy": 8,
+    "Calm": 7,
+    "Stressed": 4,
+    "Sad": 3,
+    "Energetic": 9,
+    "Anxious": 4,
+    "Neutral": 5,
+    "Grateful": 8,
+    "Frustrated": 3,
+    "Angry": 2,
+    "Excited": 9,
+    "Relaxed": 7,
+    "Tired": 4,
+    "Lonely": 3,
+}
+
 async def get_mood_trends(user_id: str, days: int = 30) -> Dict[str, Any]:
     """
     Fetch mood data for the last 'days' and aggregate emotion counts to visualize trends.
@@ -25,7 +43,7 @@ async def get_mood_trends(user_id: str, days: int = 30) -> Dict[str, Any]:
     # Fetch entries
     response = (
         supabase.table("journal_entries")
-        .select("created_at, mood, mood_score, emotions")
+        .select("created_at, emotion_tag")
         .eq("user_id", user_id)
         .gte("created_at", start_date)
         .order("created_at", desc=False)
@@ -35,7 +53,6 @@ async def get_mood_trends(user_id: str, days: int = 30) -> Dict[str, Any]:
     entries = response.data or []
     
     # Process for chart data
-    # We want a list of { date: "YYYY-MM-DD", score: 7, mood: "Happy" }
     trend_data = []
     emotion_counts = {}
     
@@ -44,17 +61,18 @@ async def get_mood_trends(user_id: str, days: int = 30) -> Dict[str, Any]:
         created_at = datetime.fromisoformat(entry["created_at"].replace("Z", "+00:00"))
         date_str = created_at.strftime("%Y-%m-%d")
         
+        emotion = entry.get("emotion_tag") or "Neutral"
+        score = EMOTION_SCORES.get(emotion, 5)
+
         trend_data.append({
             "date": date_str,
-            "score": entry["mood_score"],
-            "mood": entry["mood"],
+            "score": score,
+            "mood": emotion,
         })
         
         # Aggregate emotions
-        # entry["emotions"] is a list of strings
-        if entry.get("emotions"):
-            for emotion in entry["emotions"]:
-                emotion_counts[emotion] = emotion_counts.get(emotion, 0) + 1
+        if emotion:
+            emotion_counts[emotion] = emotion_counts.get(emotion, 0) + 1
                 
     # Format emotion distribution for pie chart
     emotion_distribution = [
@@ -78,7 +96,7 @@ async def generate_insights(user_id: str, language: str = "en") -> str:
     # Fetch last 10 entries for context
     response = (
         supabase.table("journal_entries")
-        .select("created_at, content, mood, emotions")
+        .select("created_at, content, emotion_tag")
         .eq("user_id", user_id)
         .order("created_at", desc=True)
         .limit(10)
@@ -94,8 +112,8 @@ async def generate_insights(user_id: str, language: str = "en") -> str:
     entries_text = ""
     for entry in entries:
         date_str = datetime.fromisoformat(entry["created_at"].replace("Z", "+00:00")).strftime("%Y-%m-%d")
-        emotions = ", ".join(entry.get("emotions", []) or [])
-        entries_text += f"- {date_str} (Mood: {entry['mood']}, Emotions: {emotions}): {entry['content']}\n"
+        emotion = entry.get("emotion_tag") or "Unknown"
+        entries_text += f"- {date_str} (Mood: {emotion}): {entry['content']}\n"
         
     prompt = f"""
     Analyze the following recent journal entries from a user. 
@@ -108,14 +126,30 @@ async def generate_insights(user_id: str, language: str = "en") -> str:
     if language == "hi":
         prompt += """
         Provide 3 concise, actionable, and empathetic insights in bullet points in HINDI (Devanagari script).
-        Do not use markdown formatting like bolding * or **. Just plain text bullet points.
-        Focus on "You" perspective (use "आप" and respectful tone).
+        Format:
+        - Insight 1
+        - Insight 2
+        - Insight 3
+        
+        STRICT RULES:
+        1. Return ONLY the bullet points.
+        2. Do NOT add identifying text like "Here are the insights" or "Note:".
+        3. Do NOT use markdown bolding (**).
+        4. Focus on "You" perspective (use "आप").
         """
     else:
         prompt += """
         Provide 3 concise, actionable, and empathetic insights in bullet points.
-        Do not use markdown formatting like bolding * or **. Just plain text bullet points.
-        Focus on "You" perspective.
+        Format:
+        - Insight 1
+        - Insight 2
+        - Insight 3
+
+        STRICT RULES:
+        1. Return ONLY the bullet points.
+        2. Do NOT add identifying text like "Here are the insights" or "Note:".
+        3. Do NOT use markdown bolding (**).
+        4. Focus on "You" perspective.
         """
     
     try:
@@ -123,7 +157,7 @@ async def generate_insights(user_id: str, language: str = "en") -> str:
         completion = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": "You are an empathetic mental health companion analyst."},
+                {"role": "system", "content": "You are an empathetic mental health companion analyst. You output ONLY bullet points with no intro or outro."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.7,
