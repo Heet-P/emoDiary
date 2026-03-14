@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     # Upstash Redis
     upstash_redis_url: str = ""
     upstash_redis_token: str = ""
+    
+    # Razorpay
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
 
     # CORS
     cors_origins: str = "http://localhost:3000"

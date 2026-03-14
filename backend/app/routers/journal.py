@@ -12,7 +12,7 @@ from app.models.schemas import (
     JournalEntryUpdate,
     JournalEntryResponse,
 )
-from app.services import journal_service, emotion_service
+from app.services import journal_service, emotion_service, subscription_service
 import asyncio
 
 router = APIRouter(prefix="/api/journal", tags=["journal"])
@@ -24,6 +24,13 @@ async def create_journal_entry(
     user_id: str = Depends(get_current_user),
 ):
     """Create a new journal entry."""
+    # Freemium Limit Check
+    if not await subscription_service.can_create_journal(user_id):
+        raise HTTPException(
+            status_code=403, 
+            detail="Journal entry limit reached (14). Please upgrade to Premium for unlimited entries."
+        )
+    
     try:
         entry = await journal_service.create_entry(
             user_id=user_id,

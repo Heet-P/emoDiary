@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useLanguage } from "@/context/language-context";
 import { AvatarHead, AvatarConfig } from "@/components/avatar/AvatarHead";
+import { useSubscription } from "@/hooks/use-subscription";
+import { UpgradeModal } from "@/components/subscription/UpgradeModal";
 
 interface Message {
     id?: string;
@@ -57,6 +59,10 @@ export default function TalkPage() {
     const vadFrameRef = useRef<number | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+
+    // Subscription
+    const { status } = useSubscription();
+    const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
     // Load avatar config on mount
     useEffect(() => {
@@ -151,6 +157,11 @@ export default function TalkPage() {
 
     // ─── Session ───────────────────────────────────────────────────
     const startSession = async () => {
+        // Fast-path: if we already know the limit is exceeded, show modal immediately
+        if (status?.usage.voice_sessions.exceeded) {
+            setIsUpgradeModalOpen(true);
+            return;
+        }
         setStarting(true);
         try {
             const token = await getToken();
@@ -159,6 +170,11 @@ export default function TalkPage() {
                 headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
                 body: JSON.stringify({ language }),
             });
+            // Detect freemium limit hit from backend
+            if (res.status === 403) {
+                setIsUpgradeModalOpen(true);
+                return;
+            }
             if (!res.ok) throw new Error("Failed to start session");
             const data = await res.json();
             setSessionId(data.session_id);
@@ -688,6 +704,15 @@ export default function TalkPage() {
                     </div>
                 </div>
             )}
+
+            <UpgradeModal 
+                isOpen={isUpgradeModalOpen} 
+                onClose={() => setIsUpgradeModalOpen(false)} 
+                reason={language === 'hi' 
+                    ? "आपने अपनी मुफ्त वॉयस सेशन सीमा (4) पार कर ली है। असीमित बातचीत के लिए प्रीमियम में अपग्रेड करें।" 
+                    : "You've reached your free voice session limit (4). Upgrade to Premium for unlimited heart-to-heart talks."
+                }
+            />
         </div>
     );
 }

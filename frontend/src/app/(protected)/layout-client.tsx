@@ -9,6 +9,8 @@ import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { StaggeredMenu, StaggeredMenuHandle } from "@/components/ui/staggered-menu";
 import { useLanguage } from "@/context/language-context";
+import { useSubscription } from "@/hooks/use-subscription";
+import Link from "next/link";
 
 interface UserInfo {
     id: string;
@@ -30,6 +32,8 @@ export function ProtectedLayoutClient({
     const [signingOut, setSigningOut] = useState(false);
     const menuRef = useRef<StaggeredMenuHandle>(null);
     const { t, language, setLanguage } = useLanguage();
+    const { status } = useSubscription();
+    const isPremium = status?.is_premium ?? false;
 
     const navItems = [
         { href: "/dashboard", label: t.nav.dashboard, ariaLabel: "Go to Dashboard" },
@@ -37,6 +41,7 @@ export function ProtectedLayoutClient({
         { href: "/talk", label: t.nav.talk, ariaLabel: "Go to Voice Chat" },
         { href: "/insights", label: t.nav.insights, ariaLabel: "Go to Insights" },
         { href: "/settings", label: t.nav.settings, ariaLabel: "Go to Settings" },
+        ...(!isPremium ? [{ href: "/upgrade", label: "✨ Go Premium", ariaLabel: "Upgrade to Premium" }] : []),
     ];
 
     const handleSignOut = async () => {
@@ -119,6 +124,22 @@ export function ProtectedLayoutClient({
                         <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-full bg-[#8ca69e]/10 text-[#8ca69e] text-xs font-semibold uppercase tracking-wider">
                             {activePage}
                         </span>
+
+                        {/* Premium badge or Upgrade CTA */}
+                        {isPremium ? (
+                            <span className="hidden sm:inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold tracking-wide">
+                                <span className="material-symbols-outlined text-sm">workspace_premium</span>
+                                Premium
+                            </span>
+                        ) : (
+                            <Link
+                                href="/upgrade"
+                                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#064e3b] text-white text-[10px] font-bold hover:bg-[#0a7c5c] transition-all shadow-sm"
+                            >
+                                <span className="material-symbols-outlined text-sm">workspace_premium</span>
+                                Upgrade
+                            </Link>
+                        )}
 
                         <div className="flex items-center gap-3">
                             <div

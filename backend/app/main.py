@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import health, journal, chat, emotion, analytics
+from app.routers import health, journal, chat, emotion, analytics, subscription
 from app.routers.profile import router as profile_router
 
 
@@ -48,6 +48,7 @@ app.include_router(chat.router)
 app.include_router(emotion.router)
 app.include_router(analytics.router)
 app.include_router(profile_router)
+app.include_router(subscription.router)
 
 # TODO: Phase 6 - Add voice router (Done in chat router)
 # TODO: Phase 7 - Add insights router

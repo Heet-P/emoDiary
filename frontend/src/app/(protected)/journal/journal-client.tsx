@@ -2,6 +2,11 @@
 
 import Link from "next/link";
 import { useLanguage } from "@/context/language-context";
+import { useState } from "react";
+import { useSubscription } from "@/hooks/use-subscription";
+import { UpgradeModal } from "@/components/subscription/UpgradeModal";
+import { UsageIndicator } from "@/components/subscription/UsageIndicator";
+import { useRouter } from "next/navigation";
 
 interface JournalEntry {
     id: string;
@@ -35,6 +40,17 @@ export default function JournalClient({ entries }: { entries: JournalEntry[] }) 
         });
     };
 
+    const router = useRouter();
+    const { status } = useSubscription();
+    const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+
+    const handleNewEntryClick = (e: React.MouseEvent) => {
+        if (status?.usage.journal_entries.exceeded) {
+            e.preventDefault();
+            setIsUpgradeModalOpen(true);
+        }
+    };
+
     return (
         <div className="max-w-4xl mx-auto space-y-8 fade-in-up">
             {/* Header */}
@@ -44,9 +60,13 @@ export default function JournalClient({ entries }: { entries: JournalEntry[] }) 
                     <p className="text-[#8ca69e] text-sm mt-1">
                         {entries.length} {entries.length === 1 ? (language === 'hi' ? "प्रविष्टि" : "reflection") : (language === 'hi' ? "प्रविष्टियां" : "reflections")}
                     </p>
+                    <div className="mt-4 w-48">
+                        <UsageIndicator type="journal_entries" label={language === 'hi' ? "जर्नल उपयोग" : "Journal Usage"} />
+                    </div>
                 </div>
                 <Link
                     href="/journal/new"
+                    onClick={handleNewEntryClick}
                     className="bg-primary hover:bg-primary/90 text-white px-5 py-2.5 rounded-lg font-semibold text-sm transition-all shadow-lg shadow-primary/20 flex items-center gap-2"
                 >
                     <span className="material-symbols-outlined text-lg">add</span>
@@ -123,6 +143,15 @@ export default function JournalClient({ entries }: { entries: JournalEntry[] }) 
                     ))}
                 </div>
             )}
+
+            <UpgradeModal 
+                isOpen={isUpgradeModalOpen} 
+                onClose={() => setIsUpgradeModalOpen(false)} 
+                reason={language === 'hi' 
+                    ? "आपने अपनी मुफ्त जर्नल सीमा (14) पार कर ली है। असीमित प्रविष्टियों के लिए प्रीमियम में अपग्रेड करें।" 
+                    : "You've reached your free journal limit (14). Upgrade to Premium for unlimited reflections."
+                }
+            />
         </div>
     );
 }

@@ -105,4 +105,10 @@ class UserSettingsUpdate(BaseModel):
     language: Optional[str] = None
     tts_voice: Optional[str] = None
     tts_speed: Optional[float] = None
-    data_retention_days: Optional[int] = None
+
+# ─── Subscription ────────────────────────────────────────
+
+class PaymentVerify(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str

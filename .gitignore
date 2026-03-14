@@ -60,3 +60,6 @@ service-account*.json
 
 # TypeScript
 *.tsbuildinfo
+
+# Agent
+.agent

@@ -8,7 +8,7 @@ from typing import Optional
 
 from app.dependencies import get_current_user
 from app.models.schemas import ChatMessageRequest, ChatMessageResponse, SessionStartResponse, SessionStartRequest
-from app.services import chat_service, voice_service
+from app.services import chat_service, voice_service, subscription_service
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -74,10 +74,17 @@ async def start_chat_session(
     user_id: str = Depends(get_current_user),
 ):
     """Start a new chat session with the AI companion."""
+    # Freemium Limit Check: all sessions on the Talk page are voice sessions
+    if not await subscription_service.can_start_voice_session(user_id):
+        raise HTTPException(
+            status_code=403,
+            detail="Voice session limit reached (4). Please upgrade to Premium for unlimited sessions."
+        )
+
     try:
         result = await chat_service.start_session(
             user_id=user_id,
-            mode="text",
+            mode="voice",
             language=body.language,
         )
         return result
