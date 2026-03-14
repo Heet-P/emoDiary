@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS public.user_settings (
   tts_voice           TEXT DEFAULT 'en-IN-Wavenet-D',
   tts_speed           FLOAT DEFAULT 1.0,
   data_retention_days INT DEFAULT 365,
+  therapist_score     INT,
+  therapist_justification TEXT,
   updated_at          TIMESTAMPTZ DEFAULT now()
 );
 
@@ -58,6 +60,8 @@ CREATE TABLE IF NOT EXISTS public.journal_entries (
   title       TEXT,
   content     TEXT NOT NULL,
   emotion_tag TEXT,
+  ai_multi_tags JSONB DEFAULT '[]',
+  detailed_sentiment_report TEXT,
   word_count  INT DEFAULT 0,
   created_at  TIMESTAMPTZ DEFAULT now(),
   updated_at  TIMESTAMPTZ DEFAULT now()
@@ -80,6 +84,7 @@ CREATE TABLE IF NOT EXISTS public.chat_sessions (
   user_id     UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   mode        TEXT NOT NULL CHECK (mode IN ('text', 'voice')),
   language    TEXT DEFAULT 'en',
+  saved       BOOLEAN DEFAULT FALSE,
   started_at  TIMESTAMPTZ DEFAULT now(),
   ended_at    TIMESTAMPTZ,
   duration_s  INT
@@ -193,3 +198,13 @@ CREATE TRIGGER on_auth_user_created
 -- ──────────────────────────────────────────────────────────
 -- DONE! All tables, indexes, RLS policies, and triggers created.
 -- ──────────────────────────────────────────────────────────
+
+-- ==========================================================
+-- PHASE 9 UPGRADE ALTER STATEMENTS
+-- (Run these if you are upgrading an existing database)
+-- ==========================================================
+-- ALTER TABLE public.user_settings ADD COLUMN IF NOT EXISTS therapist_score INT;
+-- ALTER TABLE public.user_settings ADD COLUMN IF NOT EXISTS therapist_justification TEXT;
+-- ALTER TABLE public.journal_entries ADD COLUMN IF NOT EXISTS ai_multi_tags JSONB DEFAULT '[]';
+-- ALTER TABLE public.journal_entries ADD COLUMN IF NOT EXISTS detailed_sentiment_report TEXT;
+-- ALTER TABLE public.chat_sessions ADD COLUMN IF NOT EXISTS saved BOOLEAN DEFAULT FALSE;

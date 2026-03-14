@@ -7,15 +7,17 @@ interface JournalEntry {
     id: string;
     title: string | null;
     content: string;
-    emotion_tag: string | null;
+    ai_multi_tags: string[];
+    detailed_sentiment_report: string | null;
     word_count: number;
     created_at: string;
 }
 
 const emotionEmojis: Record<string, string> = {
-    joy: "😊", sadness: "😢", anxiety: "😰", anger: "😠",
-    calm: "😌", gratitude: "🙏", love: "❤️", confused: "😕",
-    hopeful: "🌱", neutral: "📝",
+    joy: "😊", joyful: "😊", sadness: "😢", sad: "😢", anxiety: "😰", anxious: "😰",
+    anger: "😠", angry: "😠", calm: "😌", gratitude: "🙏", grateful: "🙏", love: "❤️",
+    confused: "😕", hopeful: "🌱", neutral: "📝", nostalgic: "🕰️", overwhelmed: "😵‍💫",
+    peaceful: "😌", excited: "🤩", lonely: "🥺",
 };
 
 function truncate(text: string, max: number) {
@@ -79,10 +81,10 @@ export default function JournalClient({ entries }: { entries: JournalEntry[] }) 
                             className="group block rounded-xl border border-[#8ca69e]/20 bg-white/60 backdrop-blur-sm p-6 transition-all hover:border-[#8ca69e]/40 hover:shadow-lg hover:shadow-[#8ca69e]/5"
                         >
                             <div className="flex items-start gap-4">
-                                {/* Emotion icon */}
+                                {/* Emotion icon (Primary / First) */}
                                 <div className="w-11 h-11 rounded-full bg-[#8ca69e]/10 flex items-center justify-center text-xl shrink-0 mt-0.5">
-                                    {entry.emotion_tag
-                                        ? emotionEmojis[entry.emotion_tag] || "📝"
+                                    {entry.ai_multi_tags && entry.ai_multi_tags.length > 0
+                                        ? emotionEmojis[entry.ai_multi_tags[0].toLowerCase()] || "📝"
                                         : "📝"}
                                 </div>
 
@@ -91,12 +93,18 @@ export default function JournalClient({ entries }: { entries: JournalEntry[] }) 
                                         <h3 className="font-medium text-base group-hover:text-primary transition-colors truncate">
                                             {entry.title || (language === 'hi' ? "शीर्षकहीन" : "Untitled Reflection")}
                                         </h3>
-                                        {entry.emotion_tag && (
-                                            <span className="text-xs px-2 py-0.5 rounded-full bg-[#8ca69e]/10 text-[#8ca69e] capitalize shrink-0">
-                                                {entry.emotion_tag}
-                                            </span>
-                                        )}
                                     </div>
+
+                                    {/* AI Multi-tags */}
+                                    {entry.ai_multi_tags && entry.ai_multi_tags.length > 0 && (
+                                        <div className="flex flex-wrap gap-2 mb-2">
+                                            {entry.ai_multi_tags.map((tag, idx) => (
+                                                <span key={idx} className="text-[10px] md:text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize shrink-0 border border-primary/20">
+                                                    {tag}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
                                     <p className="text-sm text-foreground/60 font-light leading-relaxed">
                                         {truncate(entry.content, 150)}
                                     </p>

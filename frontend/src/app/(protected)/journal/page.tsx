@@ -9,7 +9,7 @@ export default async function JournalPage() {
 
     const { data: entries } = await supabase
         .from("journal_entries")
-        .select("id, title, content, emotion_tag, word_count, created_at")
+        .select("id, title, content, ai_multi_tags, detailed_sentiment_report, word_count, created_at")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false });
 

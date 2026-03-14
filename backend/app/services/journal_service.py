@@ -5,6 +5,41 @@
 
 from typing import Optional
 from app.models.database import get_supabase_client
+from app.services.emotion_service import _get_groq_client
+import json
+
+async def _generate_journal_analysis(content: str) -> dict:
+    """Uses Groq to generate ai_multi_tags and a detailed_sentiment_report."""
+    try:
+        client = _get_groq_client()
+        prompt = (
+            "You are an empathetic psychological analyzer. Read the following journal entry "
+            "and provide two things:\n"
+            "1. 'ai_multi_tags': An array of 1 to 4 nuanced emotion tags (e.g., ['Joyful', 'Nostalgic', 'Anxious']).\n"
+            "2. 'detailed_sentiment_report': A 2-3 sentence narrative summarizing the emotional arc of the entry in the second person (e.g., 'You started the day feeling anxious, but found peace by the evening.').\n"
+            "Respond ONLY with a valid JSON object containing these two exact keys and nothing else."
+        )
+        
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": content[:2000]}
+            ],
+            temperature=0.3,
+            max_tokens=250,
+            response_format={"type": "json_object"}
+        )
+        
+        raw = response.choices[0].message.content.strip()
+        result = json.loads(raw)
+        return {
+            "ai_multi_tags": result.get("ai_multi_tags", []),
+            "detailed_sentiment_report": result.get("detailed_sentiment_report", "Unable to generate report.")
+        }
+    except Exception as e:
+        print(f"Error generating journal analysis: {e}")
+        return {"ai_multi_tags": [], "detailed_sentiment_report": None}
 
 
 async def create_entry(user_id: str, title: Optional[str], content: str, emotion_tag: Optional[str] = None) -> dict:
@@ -21,6 +56,11 @@ async def create_entry(user_id: str, title: Optional[str], content: str, emotion
         data["title"] = title
     if emotion_tag is not None:
         data["emotion_tag"] = emotion_tag
+
+    # Generate AI insights
+    analysis = await _generate_journal_analysis(content)
+    data["ai_multi_tags"] = analysis["ai_multi_tags"]
+    data["detailed_sentiment_report"] = analysis["detailed_sentiment_report"]
 
     result = supabase.table("journal_entries").insert(data).execute()
 
@@ -82,6 +122,12 @@ async def update_entry(
         updates["word_count"] = len(content.split())
     if emotion_tag is not None:
         updates["emotion_tag"] = emotion_tag
+
+    # Re-analyze if content changed
+    if content is not None:
+        analysis = await _generate_journal_analysis(content)
+        updates["ai_multi_tags"] = analysis["ai_multi_tags"]
+        updates["detailed_sentiment_report"] = analysis["detailed_sentiment_report"]
 
     if not updates:
         return await get_entry(user_id, entry_id)

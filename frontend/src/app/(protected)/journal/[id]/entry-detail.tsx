@@ -48,7 +48,8 @@ interface Entry {
     id: string;
     title: string | null;
     content: string;
-    emotion_tag: string | null;
+    ai_multi_tags: string[];
+    detailed_sentiment_report: string | null;
     word_count: number;
     created_at: string;
     updated_at: string;
@@ -59,7 +60,6 @@ export default function JournalEntryDetail({ entry }: { entry: Entry }) {
     const [editing, setEditing] = useState(false);
     const [title, setTitle] = useState(entry.title || "");
     const [content, setContent] = useState(entry.content);
-    const [emotionTag, setEmotionTag] = useState<string | null>(entry.emotion_tag);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -111,19 +111,27 @@ export default function JournalEntryDetail({ entry }: { entry: Entry }) {
         setSaving(true);
         try {
             const supabase = createClient();
-            const { error } = await supabase
-                .from("journal_entries")
-                .update({
+            const { data: { session } } = await supabase.auth.getSession();
+
+            if (!session) {
+                toast.error("You need to be signed in.");
+                return;
+            }
+
+            const res = await fetch(`${API_BASE}/api/journal/${entry.id}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
                     title: title.trim() || null,
                     content: content.trim(),
-                    emotion_tag: emotionTag,
-                    word_count: wordCount,
-                    updated_at: new Date().toISOString(),
-                })
-                .eq("id", entry.id);
+                }),
+            });
 
-            if (error) {
-                console.error("Failed to update entry:", error);
+            if (!res.ok) {
+                console.error("Failed to update entry:", await res.text());
                 toast.error("Failed to save changes.");
                 return;
             }
@@ -168,7 +176,6 @@ export default function JournalEntryDetail({ entry }: { entry: Entry }) {
     const handleCancel = () => {
         setTitle(entry.title || "");
         setContent(entry.content);
-        setEmotionTag(entry.emotion_tag);
         setEditing(false);
     };
 
@@ -256,30 +263,6 @@ export default function JournalEntryDetail({ entry }: { entry: Entry }) {
                                 <span className="text-xs text-[#8ca69e]">{wordCount} words</span>
                             </div>
                         </div>
-
-                        <div>
-                            <label className="block text-sm font-medium mb-3">
-                                How are you feeling?
-                            </label>
-                            <div className="flex flex-wrap gap-2">
-                                {emotionOptions.map((opt) => (
-                                    <button
-                                        key={opt.value}
-                                        type="button"
-                                        onClick={() =>
-                                            setEmotionTag(emotionTag === opt.value ? null : opt.value)
-                                        }
-                                        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-sm transition-all border ${emotionTag === opt.value
-                                            ? "bg-primary/10 border-primary/30 text-primary font-medium"
-                                            : "bg-white/60 border-[#8ca69e]/20 text-foreground/70 hover:border-[#8ca69e]/40"
-                                            }`}
-                                    >
-                                        <span>{opt.emoji}</span>
-                                        <span>{opt.label}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
                     </>
                 ) : (
                     /* ── View Mode ── */
@@ -294,15 +277,18 @@ export default function JournalEntryDetail({ entry }: { entry: Entry }) {
                                 <span>{createdTime}</span>
                                 <span>·</span>
                                 <span>{entry.word_count} words</span>
-                                {entry.emotion_tag && (
-                                    <>
-                                        <span>·</span>
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#8ca69e]/10 capitalize">
-                                            {emotionEmojis[entry.emotion_tag] || "📝"} {entry.emotion_tag}
-                                        </span>
-                                    </>
-                                )}
                             </div>
+                            
+                            {/* AI Multi-tags */}
+                            {entry.ai_multi_tags && entry.ai_multi_tags.length > 0 && (
+                                <div className="flex flex-wrap gap-2 pt-1">
+                                    {entry.ai_multi_tags.map((tag, idx) => (
+                                        <span key={idx} className="text-xs px-3 py-1 rounded-full bg-primary/10 text-primary capitalize border border-primary/20">
+                                            {emotionEmojis[tag.toLowerCase()] || "📝"} {tag}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         <div className="prose prose-lg max-w-none">
@@ -316,11 +302,17 @@ export default function JournalEntryDetail({ entry }: { entry: Entry }) {
 
             {/* AI Emotion Insight */}
             {!editing && (
-                <div className="rounded-xl border border-[#8ca69e]/20 bg-white/60 backdrop-blur-sm p-6 md:p-8">
-                    <div className="flex items-center gap-2 mb-5">
+                <div className="rounded-xl border border-[#8ca69e]/20 bg-white/60 backdrop-blur-sm p-6 md:p-8 space-y-6">
+                    <div className="flex items-center gap-2 mb-2">
                         <span className="material-symbols-outlined text-lg text-[#8ca69e]">psychology</span>
                         <h2 className="serif-text text-lg font-medium">AI Emotion Insight</h2>
                     </div>
+                    
+                    {entry.detailed_sentiment_report && (
+                        <div className="p-4 rounded-lg bg-primary/5 border border-primary/10 text-sm leading-relaxed text-foreground/80 italic">
+                            "{entry.detailed_sentiment_report}"
+                        </div>
+                    )}
 
                     {analysisLoading ? (
                         <div className="flex items-center gap-2 text-sm text-[#8ca69e]">

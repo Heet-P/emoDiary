@@ -71,7 +71,7 @@ async def synthesize_speech(text: str, language: str = "en") -> str:
         if not settings.sarvam_api_key:
             raise Exception("SARVAM_API_KEY is not set.")
 
-        # Determine language code for Sarvam TTS
+        # Determine language code for Sarvam `1 65`
         if language in ["hi", "hinglish"]:
             sarvam_lang = "hi-IN"
         elif language == "gu":

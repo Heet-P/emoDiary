@@ -33,6 +33,8 @@ class JournalEntryResponse(BaseModel):
     title: Optional[str]
     content: str
     emotion_tag: Optional[str]
+    ai_multi_tags: Optional[list[str]] = None
+    detailed_sentiment_report: Optional[str] = None
     word_count: int
     created_at: datetime
     updated_at: datetime
@@ -96,6 +98,8 @@ class UserSettingsResponse(BaseModel):
     tts_voice: str
     tts_speed: float
     data_retention_days: int
+    therapist_score: Optional[int] = None
+    therapist_justification: Optional[str] = None
 
 class UserSettingsUpdate(BaseModel):
     language: Optional[str] = None

@@ -42,27 +42,28 @@ export default function NewJournalEntryPage() {
         setSaving(true);
         try {
             const supabase = createClient();
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
 
-            if (!user) {
+            if (!session) {
                 toast.error("You need to be signed in.");
                 return;
             }
 
-            const { error } = await supabase
-                .from("journal_entries")
-                .insert({
-                    user_id: user.id,
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/journal`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
                     title: title.trim() || null,
                     content: content.trim(),
                     emotion_tag: emotionTag,
-                    word_count: wordCount,
-                });
+                }),
+            });
 
-            if (error) {
-                console.error("Failed to save entry:", error);
+            if (!res.ok) {
+                console.error("Failed to save entry:", await res.text());
                 toast.error("Failed to save. Please try again.");
                 return;
             }
