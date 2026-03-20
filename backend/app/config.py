@@ -27,9 +27,8 @@ class Settings(BaseSettings):
     upstash_redis_url: str = ""
     upstash_redis_token: str = ""
     
-    # Razorpay
-    razorpay_key_id: str = ""
-    razorpay_key_secret: str = ""
+    # Admin bypass
+    admin_email: str = ""
 
     # CORS
     cors_origins: str = "http://localhost:3000"
@@ -43,6 +42,9 @@ class Settings(BaseSettings):
         "env_file": ".env",
         "env_file_encoding": "utf-8",
         "case_sensitive": False,
+        # Allow legacy environment variables (e.g. Razorpay keys) to exist
+        # without crashing the app after removing the Razorpay integration.
+        "extra": "ignore",
     }
 
 

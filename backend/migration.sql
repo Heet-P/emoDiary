@@ -217,7 +217,10 @@ ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS avatar_name    TEXT  DEFAULT \'emoDiary\',
   ADD COLUMN IF NOT EXISTS is_premium     BOOLEAN DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS subscription_tier TEXT DEFAULT \'free\',
-  ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS razorpay_customer_id TEXT,
-  ADD COLUMN IF NOT EXISTS razorpay_subscription_id TEXT;
+  ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMPTZ;
+
+-- Remove any legacy Razorpay columns from older versions
+ALTER TABLE public.profiles
+  DROP COLUMN IF EXISTS razorpay_customer_id,
+  DROP COLUMN IF EXISTS razorpay_subscription_id;
 

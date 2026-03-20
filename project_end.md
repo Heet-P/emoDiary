@@ -96,12 +96,11 @@ Key backend services:
 - **`voice_service`**: Handles audio transcription (Whisper) and speech synthesis (Sarvam AI)
 - **`emotion_service`**: Drives multi-label sentiment analysis using Llama
 - **`analytics_service`**: Aggregates journal and session data into structured insights
-- **`subscription_service`**: Tracks usage counts and enforces freemium limits
-- **`razorpay_service`**: Handles payment order creation and cryptographic signature verification
+- **`subscription_service`**: Tracks usage counts (completely free, no limits)
 
 ### 4.3 Database (Supabase / PostgreSQL)
 The database schema is built around 6 primary tables:
-- **`profiles`**: User preferences, avatar config, subscription status, Razorpay customer data
+- **`profiles`**: User preferences, avatar config, subscription status
 - **`journal_entries`**: All journal content, AI emotion tags, sentiment reports, word counts
 - **`chat_sessions`**: Session records with mode (voice/text), language, lifecycle timestamps
 - **`chat_messages`**: Individual messages per session with role (user/assistant) and content
@@ -129,34 +128,16 @@ A traditional transformer like BERT would give you a score from 0-1 on predefine
 
 This is a critical UX decision — hearing your emotional reflection spoken back in a voice that feels natural to you is deeply personal.
 
-### 4.6 Payments — Razorpay
-**Razorpay** was selected as the payment gateway because it is the dominant Indian payments platform with native support for:
-- **UPI** (the primary payment method for most Indians)
-- **NetBanking**, Credit/Debit Cards, Wallets
-- **Subscriptions and recurring billing** infrastructure
-- Full INR support with Indian compliance
-- Easy integration with minimal KYC friction for test-to-production mode
+### 4.6 Payments
+No payments: emoDiary is completely free (no paywall).
 
 ---
 
 ## 5. Business Model
-
-### 5.1 Freemium Tier
-Every user gets a meaningful free experience:
-- **14 journal entries** per month
-- **4 voice therapy sessions** per month
-
-14 entries is exactly 2 weeks of daily journaling — enough for a user to build a habit and see real value before hitting the limit. 4 voice sessions is enough for a user to form a genuine connection with their AI companion before being asked to pay.
-
-### 5.2 Premium Tier
-#### Monthly Plan — ₹299/month
+### 5.1 Free Tier
+Every user gets unlimited access:
 - Unlimited journal entries
-- Unlimited voice chat sessions
-
-#### Yearly Plan — ₹2,499/year (~₹208/month)
-- Everything in monthly
-- ~30% savings vs monthly billing
-- Ideal for committed users building a long-term emotional wellness practice
+- Unlimited voice therapy sessions
 
 ### 5.3 Therapist Partnership Revenue (Referral Model)
 emoDiary has a B2B2C component: partnered therapists and clinics are listed on the platform. When users above the clinical threshold visit a partner clinic using the referral code, **the clinic provides a discount and emoDiary earns a referral fee**. This model:
@@ -178,7 +159,7 @@ This pricing makes mental health support accessible at a scale that professional
 ### 🇮🇳 USP 1: Truly Indian-First
 - Hindi, Hinglish, Gujarati support, not just English
 - Indian language TTS that sounds human
-- Razorpay with UPI support — payments work the way Indians pay
+- No payments required — access is free for everyone
 - Understanding of Indian cultural context in AI responses (joint family stress, exam pressure, career expectations)
 
 ### 🧠 USP 2: The Only App That Listens — Literally
@@ -256,10 +237,10 @@ The platform's architecture is designed to be responsive even in lower-bandwidth
 | Emotional insights dashboard | ✅ Complete |
 | Therapist score + recommendation cards | ✅ Complete |
 | Therapist referral code ("EmoDiary") | ✅ Complete |
-| Freemium model (14 journals / 4 voice sessions) | ✅ Complete |
-| Razorpay Payment integration (test mode) | ✅ Complete |
-| Pricing page with Monthly & Yearly plans | ✅ Complete |
-| Upgrade prompts and paywall UI | ✅ Complete |
+| Free unlimited model | ✅ Complete |
+| Payments integration | ❌ Removed |
+| Pricing page with Monthly & Yearly plans | ❌ Removed |
+| Upgrade prompts and paywall UI | ❌ Removed |
 | Production deployment readiness (Supabase, Groq, Sarvam) | ✅ Complete |
 
 ---

@@ -106,9 +106,3 @@ class UserSettingsUpdate(BaseModel):
     tts_voice: Optional[str] = None
     tts_speed: Optional[float] = None
 
-# ─── Subscription ────────────────────────────────────────
-
-class PaymentVerify(BaseModel):
-    razorpay_order_id: str
-    razorpay_payment_id: str
-    razorpay_signature: str

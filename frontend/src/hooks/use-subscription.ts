@@ -50,26 +50,5 @@ export function useSubscription() {
         fetchStatus();
     }, [fetchStatus]);
 
-    const upgrade = async () => {
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            const res = await fetch(`${API_BASE}/api/subscription/upgrade`, {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${session.access_token}`,
-                },
-            });
-            if (res.ok) {
-                await fetchStatus();
-                return true;
-            }
-        } catch (error) {
-            console.error("Failed to upgrade:", error);
-        }
-        return false;
-    };
-
-    return { status, loading, refresh: fetchStatus, upgrade };
+    return { status, loading, refresh: fetchStatus };
 }
