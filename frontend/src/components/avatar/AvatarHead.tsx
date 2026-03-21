@@ -116,7 +116,7 @@ export function AvatarHead({
                         rx={mouthRx}
                         ry={mouthRy}
                         fill={mouthRy > 3 ? "#c0392b" : "#e8a598"}
-                        style={{ transition: "ry 80ms ease-out" }}
+                        className="transition-[ry] duration-75 ease-out"
                     />
                     {/* Teeth — only visible when open */}
                     {mouthRy > 4 && (

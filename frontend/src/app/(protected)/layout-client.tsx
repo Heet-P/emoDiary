@@ -109,7 +109,7 @@ export function ProtectedLayoutClient({
                         {/* Language Toggle */}
                         <button
                             onClick={toggleLanguage}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#fefcfa] border border-[#8ca69e]/20 text-xs font-semibold text-[#064e3b] hover:bg-[#064e3b] hover:text-white transition-all shadow-sm"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#fefcfa] border border-[#8ca69e]/20 text-xs font-semibold text-[#064e3b] hover:bg-[#064e3b] hover:text-white transition-[background-color,color] shadow-sm"
                             title="Switch Language"
                         >
                             <span className="material-symbols-outlined text-base">translate</span>
@@ -136,7 +136,7 @@ export function ProtectedLayoutClient({
                                     disabled={signingOut}
                                     className="text-xs text-[#8ca69e] hover:text-destructive transition-colors mt-0.5"
                                 >
-                                    {signingOut ? "..." : t.nav.logout}
+                                    {signingOut ? "…" : t.nav.logout}
                                 </button>
                             </div>
                         </div>

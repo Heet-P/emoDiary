@@ -127,7 +127,7 @@ export function AvatarPicker({ initialConfig, initialName, onSaved }: AvatarPick
                                 key={s.id}
                                 onClick={() => update("skin", s.id)}
                                 title={s.label}
-                                className={`w-9 h-9 rounded-full border-2 transition-all ${config.skin === s.id ? "border-[#064e3b] scale-110 shadow-md" : "border-transparent hover:scale-105"}`}
+                                className={`w-9 h-9 rounded-full border-2 transition-[border-color,transform,box-shadow] ${config.skin === s.id ? "border-[#064e3b] scale-110 shadow-md" : "border-transparent hover:scale-105"}`}
                                 style={{ backgroundColor: s.hex }}
                             />
                         ))}
@@ -145,7 +145,7 @@ export function AvatarPicker({ initialConfig, initialName, onSaved }: AvatarPick
                                 key={h.id}
                                 onClick={() => update("hair", h.id)}
                                 title={h.label}
-                                className={`w-9 h-9 rounded-full border-2 transition-all ${config.hair === h.id ? "border-[#064e3b] scale-110 shadow-md" : "border-transparent hover:scale-105"}`}
+                                className={`w-9 h-9 rounded-full border-2 transition-[border-color,transform,box-shadow] ${config.hair === h.id ? "border-[#064e3b] scale-110 shadow-md" : "border-transparent hover:scale-105"}`}
                                 style={{ backgroundColor: h.hex }}
                             />
                         ))}
@@ -162,7 +162,7 @@ export function AvatarPicker({ initialConfig, initialName, onSaved }: AvatarPick
                             <button
                                 key={h.id}
                                 onClick={() => update("headShape", h.id)}
-                                className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${config.headShape === h.id
+                                className={`px-4 py-2 rounded-xl text-sm font-medium border transition-[background-color,border-color,color] ${config.headShape === h.id
                                     ? "bg-[#064e3b] text-white border-[#064e3b]"
                                     : "bg-white text-[#8ca69e] border-[#8ca69e]/30 hover:border-[#064e3b]/40"
                                     }`}
@@ -184,7 +184,7 @@ export function AvatarPicker({ initialConfig, initialName, onSaved }: AvatarPick
                                 key={color}
                                 onClick={() => update("accentColor", color)}
                                 title={color}
-                                className={`w-9 h-9 rounded-full border-2 transition-all ${config.accentColor === color ? "border-[#064e3b] scale-110 shadow-md" : "border-white hover:scale-105"}`}
+                                className={`w-9 h-9 rounded-full border-2 transition-[border-color,transform,box-shadow] ${config.accentColor === color ? "border-[#064e3b] scale-110 shadow-md" : "border-white hover:scale-105"}`}
                                 style={{ backgroundColor: color }}
                             />
                         ))}
@@ -196,7 +196,7 @@ export function AvatarPicker({ initialConfig, initialName, onSaved }: AvatarPick
                     whileTap={{ scale: 0.97 }}
                     onClick={handleSave}
                     disabled={saving}
-                    className="w-full py-3 rounded-xl bg-[#064e3b] text-white text-sm font-semibold hover:bg-[#0a7c5c] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                    className="w-full py-3 rounded-xl bg-[#064e3b] text-white text-sm font-semibold hover:bg-[#0a7c5c] transition-[background-color] duration-200 disabled:opacity-60 flex items-center justify-center gap-2"
                 >
                     <span className="material-symbols-outlined text-base">{saving ? "sync" : "save"}</span>
                     {saving ? "Saving..." : "Save Avatar"}

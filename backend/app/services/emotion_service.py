@@ -6,10 +6,9 @@
 import json
 from typing import Optional
 from textblob import TextBlob
-from groq import Groq
 
-from app.config import get_settings
 from app.models.database import get_supabase_client
+from app.services.ai_client import get_groq_client
 
 
 # ── Emotion vocabulary ──
@@ -18,11 +17,6 @@ EMOTION_LIST = [
     "calm", "gratitude", "love", "hope", "confusion",
     "loneliness", "excitement", "frustration", "guilt", "neutral",
 ]
-
-
-def _get_groq_client() -> Groq:
-    settings = get_settings()
-    return Groq(api_key=settings.groq_api_key)
 
 
 def _textblob_sentiment(text: str) -> float:
@@ -38,7 +32,7 @@ async def analyze_emotions_with_ai(text: str) -> dict:
     Falls back to TextBlob-only analysis if Groq fails.
     """
     try:
-        client = _get_groq_client()
+        client = get_groq_client()
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[

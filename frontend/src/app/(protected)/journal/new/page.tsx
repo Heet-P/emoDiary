@@ -109,7 +109,7 @@ export default function NewJournalEntryPage() {
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         maxLength={200}
-                        className="w-full px-4 py-3 rounded-lg border border-[#8ca69e]/20 bg-white/80 placeholder:text-[#8ca69e]/60 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all text-base"
+                        className="w-full px-4 py-3 rounded-lg border border-[#8ca69e]/20 bg-white/80 placeholder:text-[#8ca69e]/60 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-[border-color,box-shadow] text-base"
                     />
                 </div>
 
@@ -120,11 +120,13 @@ export default function NewJournalEntryPage() {
                     </label>
                     <textarea
                         id="content"
+                        name="content"
+                        autoComplete="off"
                         placeholder="Let your thoughts flow freely…"
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
                         rows={12}
-                        className="w-full px-4 py-3 rounded-lg border border-[#8ca69e]/20 bg-white/80 placeholder:text-[#8ca69e]/60 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all text-base leading-relaxed resize-none"
+                        className="w-full px-4 py-3 rounded-lg border border-[#8ca69e]/20 bg-white/80 placeholder:text-[#8ca69e]/60 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-[border-color,box-shadow] text-base leading-relaxed resize-none"
                     />
                     <div className="flex justify-end mt-1.5">
                         <span className="text-xs text-[#8ca69e]">{wordCount} words</span>
@@ -144,7 +146,7 @@ export default function NewJournalEntryPage() {
                                 onClick={() =>
                                     setEmotionTag(emotionTag === opt.value ? null : opt.value)
                                 }
-                                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-sm transition-all border ${emotionTag === opt.value
+                                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-sm transition-[background-color,border-color,color] border ${emotionTag === opt.value
                                         ? "bg-primary/10 border-primary/30 text-primary font-medium"
                                         : "bg-white/60 border-[#8ca69e]/20 text-foreground/70 hover:border-[#8ca69e]/40"
                                     }`}
@@ -168,7 +170,7 @@ export default function NewJournalEntryPage() {
                 <button
                     onClick={handleSave}
                     disabled={saving || !content.trim()}
-                    className="bg-[#064e3b] hover:bg-[#064e3b]/90 text-[#fefcfa] px-8 py-3 rounded-lg font-semibold text-sm transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="bg-[#064e3b] hover:bg-[#064e3b]/90 text-[#fefcfa] px-8 py-3 rounded-lg font-semibold text-sm transition-[background-color,transform,box-shadow] shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                     {saving ? (
                         <>

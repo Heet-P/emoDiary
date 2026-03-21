@@ -34,7 +34,7 @@ export default async function Home() {
             </Link>
             <Link
               href="/sign-up"
-              className="bg-primary hover:bg-primary/90 text-white px-5 py-2 rounded-lg font-semibold text-sm transition-all shadow-lg shadow-primary/20"
+              className="bg-primary hover:bg-primary/90 text-white px-5 py-2 rounded-lg font-semibold text-sm transition-[background-color,box-shadow,transform] shadow-lg shadow-primary/20"
             >
               Get Started
             </Link>
@@ -63,7 +63,7 @@ export default async function Home() {
           <div className="flex flex-col items-center gap-4 fade-in-up delay-200">
             <Link
               href="/sign-up"
-              className="bg-primary hover:bg-primary/90 text-white px-10 py-4 rounded-lg font-bold text-lg transition-all shadow-lg shadow-primary/20 flex items-center gap-2"
+              className="bg-primary hover:bg-primary/90 text-white px-10 py-4 rounded-lg font-bold text-lg transition-[background-color,box-shadow,transform] shadow-lg shadow-primary/20 flex items-center gap-2"
             >
               Get Started
               <span className="material-symbols-outlined text-xl">arrow_right_alt</span>
@@ -79,7 +79,7 @@ export default async function Home() {
       <section className="max-w-[1200px] mx-auto px-6 py-32 w-full">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
           {/* Reflect */}
-          <div className="group flex flex-col p-10 md:p-12 rounded-xl border border-[#8ca69e]/20 backdrop-blur-sm transition-all hover:border-[#8ca69e]/40 hover:shadow-xl hover:shadow-[#8ca69e]/5 bg-white/60">
+          <div className="group flex flex-col p-10 md:p-12 rounded-xl border border-[#8ca69e]/20 backdrop-blur-sm transition-[border-color,box-shadow] hover:border-[#8ca69e]/40 hover:shadow-xl hover:shadow-[#8ca69e]/5 bg-white/60">
             <div className="mb-8 w-12 h-12 flex items-center justify-center rounded-full bg-[#8ca69e]/10 text-[#8ca69e] group-hover:bg-primary/10 group-hover:text-primary transition-colors">
               <span className="material-symbols-outlined text-2xl">edit_note</span>
             </div>
@@ -90,7 +90,7 @@ export default async function Home() {
           </div>
 
           {/* Discover */}
-          <div className="group flex flex-col p-10 md:p-12 rounded-xl border border-[#8ca69e]/20 backdrop-blur-sm transition-all hover:border-[#8ca69e]/40 hover:shadow-xl hover:shadow-[#8ca69e]/5 bg-white/60">
+          <div className="group flex flex-col p-10 md:p-12 rounded-xl border border-[#8ca69e]/20 backdrop-blur-sm transition-[border-color,box-shadow] hover:border-[#8ca69e]/40 hover:shadow-xl hover:shadow-[#8ca69e]/5 bg-white/60">
             <div className="mb-8 w-12 h-12 flex items-center justify-center rounded-full bg-[#8ca69e]/10 text-[#8ca69e] group-hover:bg-primary/10 group-hover:text-primary transition-colors">
               <span className="material-symbols-outlined text-2xl">insights</span>
             </div>
@@ -101,7 +101,7 @@ export default async function Home() {
           </div>
 
           {/* Grow */}
-          <div className="group flex flex-col p-10 md:p-12 rounded-xl border border-[#8ca69e]/20 backdrop-blur-sm transition-all hover:border-[#8ca69e]/40 hover:shadow-xl hover:shadow-[#8ca69e]/5 bg-white/60">
+          <div className="group flex flex-col p-10 md:p-12 rounded-xl border border-[#8ca69e]/20 backdrop-blur-sm transition-[border-color,box-shadow] hover:border-[#8ca69e]/40 hover:shadow-xl hover:shadow-[#8ca69e]/5 bg-white/60">
             <div className="mb-8 w-12 h-12 flex items-center justify-center rounded-full bg-[#8ca69e]/10 text-[#8ca69e] group-hover:bg-primary/10 group-hover:text-primary transition-colors">
               <span className="material-symbols-outlined text-2xl">psychology</span>
             </div>

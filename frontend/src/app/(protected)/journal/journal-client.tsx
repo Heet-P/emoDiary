@@ -51,7 +51,7 @@ export default function JournalClient({ entries }: { entries: JournalEntry[] }) 
                 </div>
                 <Link
                     href="/journal/new"
-                    className="bg-primary hover:bg-primary/90 text-white px-5 py-2.5 rounded-lg font-semibold text-sm transition-all shadow-lg shadow-primary/20 flex items-center gap-2"
+                    className="bg-primary hover:bg-primary/90 text-white px-5 py-2.5 rounded-lg font-semibold text-sm transition-[background-color,box-shadow,transform] shadow-lg shadow-primary/20 flex items-center gap-2"
                 >
                     <span className="material-symbols-outlined text-lg">add</span>
                     {t.dashboard.newEntry}
@@ -82,7 +82,7 @@ export default function JournalClient({ entries }: { entries: JournalEntry[] }) 
                         <Link
                             key={entry.id}
                             href={`/journal/${entry.id}`}
-                            className="group block rounded-xl border border-[#8ca69e]/20 bg-white/60 backdrop-blur-sm p-6 transition-all hover:border-[#8ca69e]/40 hover:shadow-lg hover:shadow-[#8ca69e]/5"
+                            className="group block rounded-xl border border-[#8ca69e]/20 bg-white/60 backdrop-blur-sm p-6 transition-[border-color,box-shadow] hover:border-[#8ca69e]/40 hover:shadow-lg hover:shadow-[#8ca69e]/5"
                         >
                             <div className="flex items-start gap-4">
                                 {/* Emotion icon (Primary / First) */}

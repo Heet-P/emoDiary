@@ -401,7 +401,7 @@ export default function TalkPage() {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (saveAsJournal) {
-                const toastId = toast.loading(language === "hi" ? "जर्नल में बदल रहे हैं..." : "Converting to Journal...");
+                const toastId = toast.loading(language === "hi" ? "जर्नल में बदल रहे हैं…" : "Converting to Journal…");
                 const res = await fetch(`${API_BASE}/api/chat/session/${sessionId}/convert_to_journal`, {
                     method: "POST",
                     headers: { Authorization: `Bearer ${token}` },
@@ -431,10 +431,10 @@ export default function TalkPage() {
     const isBusy = loading || voiceState === "processing" || voiceState === "speaking";
 
     const getStatusText = () => {
-        if (voiceState === "listening") return t.talk.listening || "Listening...";
-        if (voiceState === "processing") return t.talk.processing || "Thinking...";
-        if (voiceState === "speaking") return t.talk.speaking || "Speaking...";
-        if (loading) return t.talk.processing || "Typing...";
+        if (voiceState === "listening") return t.talk.listening || "Listening…";
+        if (voiceState === "processing") return t.talk.processing || "Thinking…";
+        if (voiceState === "speaking") return t.talk.speaking || "Speaking…";
+        if (loading) return t.talk.processing || "Typing…";
         return "";
     };
 
@@ -470,7 +470,7 @@ export default function TalkPage() {
                         <button
                             key={lang.id}
                             onClick={() => setLanguage(lang.id as any)}
-                            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${language === lang.id ? "bg-white shadow text-[#064e3b]" : "text-[#8ca69e] hover:text-[#064e3b]"}`}
+                            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-[background-color,box-shadow,color] ${language === lang.id ? "bg-white shadow text-[#064e3b]" : "text-[#8ca69e] hover:text-[#064e3b]"}`}
                         >
                             {lang.label}
                         </button>
@@ -481,7 +481,7 @@ export default function TalkPage() {
                     <button
                         onClick={startSession}
                         disabled={starting}
-                        className="group relative px-8 py-4 bg-[#064e3b] text-[#fefcfa] rounded-full font-medium text-lg shadow-lg hover:shadow-xl hover:shadow-[#064e3b]/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                        className="group relative px-8 py-4 bg-[#064e3b] text-[#fefcfa] rounded-full font-medium text-lg shadow-lg hover:shadow-xl hover:shadow-[#064e3b]/20 transition-[background-color,box-shadow,transform] hover:scale-105 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
                     >
                         <span className="flex items-center gap-2">
                             {starting ? (
@@ -539,7 +539,7 @@ export default function TalkPage() {
                     {/* User avatar badge */}
                     <div className="flex flex-col items-center gap-3">
                         <div
-                            className={`w-24 h-24 rounded-full bg-gradient-to-br from-[#8ca69e]/30 to-[#064e3b]/20 flex items-center justify-center text-3xl font-serif text-[#064e3b] shadow-md transition-all duration-300 ${voiceState === "listening" ? "ring-4 ring-red-400 ring-offset-2 scale-105" : ""}`}
+                            className={`w-24 h-24 rounded-full bg-gradient-to-br from-[#8ca69e]/30 to-[#064e3b]/20 flex items-center justify-center text-3xl font-serif text-[#064e3b] shadow-md transition-[transform,ring-width] duration-300 ${voiceState === "listening" ? "ring-4 ring-red-400 ring-offset-2 scale-105" : ""}`}
                         >
                             {userDisplayName.charAt(0).toUpperCase()}
                         </div>
@@ -564,7 +564,7 @@ export default function TalkPage() {
                         )}
                         {voiceState !== "listening" && (
                             <p className="text-xs text-[#8ca69e] mt-1">
-                                {voiceState === "processing" ? "Processing..." : "Your turn..."}
+                                {voiceState === "processing" ? "Processing…" : "Your turn…"}
                             </p>
                         )}
                     </div>
@@ -581,7 +581,7 @@ export default function TalkPage() {
                     />
                     {voiceState === "speaking" && (
                         <p className="text-xs text-[#10b981] mt-3 animate-pulse font-medium">
-                            {avatarName} is speaking...
+                            {avatarName} is speaking…
                         </p>
                     )}
                 </div>
@@ -615,14 +615,14 @@ export default function TalkPage() {
 
             {/* Input */}
             <div className="p-4 bg-white/50 backdrop-blur-sm border-t border-[#8ca69e]/10 rounded-b-xl">
-                <div className="relative flex items-end gap-2 bg-white border border-[#8ca69e]/20 rounded-2xl p-2 shadow-sm focus-within:border-[#8ca69e]/40 transition-all">
+                <div className="relative flex items-end gap-2 bg-white border border-[#8ca69e]/20 rounded-2xl p-2 shadow-sm focus-within:border-[#8ca69e]/40 transition-[border-color,box-shadow]">
                     <button
                         onClick={voiceState !== "idle" ? stopContinuousVoice : startListeningLoop}
-                        className={`p-3 rounded-xl transition-all ${voiceState !== "idle"
+                        className={`p-3 rounded-xl transition-[background-color,color,box-shadow] ${voiceState !== "idle"
                                 ? "bg-red-50 text-red-600 hover:bg-red-100 shadow-inner"
                                 : "text-[#8ca69e] hover:bg-[#8ca69e]/10 hover:text-[#064e3b]"
                             }`}
-                        title={voiceState !== "idle" ? "Stop Live Voice" : "Start Live Voice"}
+                        aria-label={voiceState !== "idle" ? "Stop Live Voice" : "Start Live Voice"}
                     >
                         <span className="material-symbols-outlined text-xl">
                             {voiceState !== "idle" ? "stop_circle" : "mic"}
@@ -634,6 +634,8 @@ export default function TalkPage() {
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
+                        name="message"
+                        autoComplete="off"
                         disabled={voiceState !== "idle" || loading}
                         placeholder={voiceState !== "idle" ? getStatusText() : "Share what's on your mind…"}
                         className="flex-1 bg-transparent border-none focus:ring-0 resize-none py-3 text-sm placeholder:text-[#8ca69e]/50 disabled:opacity-50"
@@ -645,6 +647,7 @@ export default function TalkPage() {
                         onClick={sendMessage}
                         disabled={!input.trim() || isBusy}
                         className="p-3 rounded-xl bg-[#064e3b] text-[#fefcfa] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#0a7c5c] transition-colors shadow-sm"
+                        aria-label="Send message"
                     >
                         <span className="material-symbols-outlined text-xl">send</span>
                     </button>
@@ -674,7 +677,7 @@ export default function TalkPage() {
                                     disabled={ending}
                                     className="w-full px-4 py-3 rounded-lg bg-[#064e3b] text-[#fefcfa] text-sm font-medium hover:bg-[#086a51] transition-colors disabled:opacity-50"
                                 >
-                                    {ending ? "Saving..." : (language === "hi" ? "हाँ, डायरी में सहेजें" : "Yes, save to Diary")}
+                                    {ending ? "Saving…" : (language === "hi" ? "हाँ, डायरी में सहेजें" : "Yes, save to Diary")}
                                 </button>
                                 <button
                                     onClick={() => endSession(false)}

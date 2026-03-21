@@ -68,3 +68,17 @@ async def get_therapist_score(
         return result.data[0]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/patterns")
+async def get_patterns(
+    limit: int = 20,
+    user_id: str = Depends(get_current_user),
+) -> list:
+    """
+    Get the user's detected behavioural and emotional patterns.
+    """
+    try:
+        return await analytics_service.get_user_patterns(user_id, limit)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

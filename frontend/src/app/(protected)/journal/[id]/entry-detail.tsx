@@ -219,7 +219,7 @@ export default function JournalEntryDetail({ entry }: { entry: Entry }) {
                             <button
                                 onClick={handleSave}
                                 disabled={saving || !content.trim()}
-                                className="bg-[#064e3b] text-[#fefcfa] px-5 py-2 rounded-lg font-semibold text-sm transition-all shadow-lg disabled:opacity-50 flex items-center gap-1.5"
+                                className="bg-[#064e3b] text-[#fefcfa] px-5 py-2 rounded-lg font-semibold text-sm transition-[background-color,transform,box-shadow] shadow-lg disabled:opacity-50 flex items-center gap-1.5"
                             >
                                 {saving ? "Saving…" : "Save Changes"}
                             </button>
@@ -244,7 +244,7 @@ export default function JournalEntryDetail({ entry }: { entry: Entry }) {
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
                                 maxLength={200}
-                                className="w-full px-4 py-3 rounded-lg border border-[#8ca69e]/20 bg-white/80 placeholder:text-[#8ca69e]/60 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all text-base"
+                                className="w-full px-4 py-3 rounded-lg border border-[#8ca69e]/20 bg-white/80 placeholder:text-[#8ca69e]/60 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-[border-color,box-shadow] text-base"
                             />
                         </div>
 
@@ -253,11 +253,13 @@ export default function JournalEntryDetail({ entry }: { entry: Entry }) {
                                 Content
                             </label>
                             <textarea
+                                name="content"
+                                autoComplete="off"
                                 id="content"
                                 value={content}
                                 onChange={(e) => setContent(e.target.value)}
                                 rows={12}
-                                className="w-full px-4 py-3 rounded-lg border border-[#8ca69e]/20 bg-white/80 placeholder:text-[#8ca69e]/60 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all text-base leading-relaxed resize-none"
+                                className="w-full px-4 py-3 rounded-lg border border-[#8ca69e]/20 bg-white/80 placeholder:text-[#8ca69e]/60 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-[border-color,box-shadow] text-base leading-relaxed resize-none"
                             />
                             <div className="flex justify-end mt-1.5">
                                 <span className="text-xs text-[#8ca69e]">{wordCount} words</span>
@@ -347,7 +349,7 @@ export default function JournalEntryDetail({ entry }: { entry: Entry }) {
                                             <span className="text-sm w-24 capitalize text-foreground/70">{emotion}</span>
                                             <div className="flex-1 h-2.5 rounded-full bg-[#8ca69e]/10 overflow-hidden">
                                                 <div
-                                                    className="h-full rounded-full transition-all duration-500"
+                                                    className="h-full rounded-full transition-[width] duration-500"
                                                     style={{
                                                         width: `${Math.round(confidence * 100)}%`,
                                                         backgroundColor: emotionColors[emotion] || "#8ca69e",

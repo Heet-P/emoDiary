@@ -219,7 +219,7 @@ export default function InsightsPage() {
 
     const handleCalculateScore = async () => {
         setCalculatingScore(true);
-        const toastId = toast.loading(language === "hi" ? "स्कोर की गणना की जा रही है..." : "Calculating score...");
+        const toastId = toast.loading(language === "hi" ? "स्कोर की गणना की जा रही है…" : "Calculating score…");
         try {
             const supabase = createClient();
             const {
@@ -452,7 +452,7 @@ export default function InsightsPage() {
                                             <div
                                                 key={cellIndex}
                                                 title={`${cell.dateStr}: ${cell.count} entries`}
-                                                className="w-3.5 h-3.5 rounded-sm transition-all cursor-pointer hover:scale-125"
+                                                className="w-3.5 h-3.5 rounded-sm transition-[transform] cursor-pointer hover:scale-125"
                                                 style={{ backgroundColor: HEATMAP_COLORS[cell.level] }}
                                             />
                                         );
@@ -492,7 +492,7 @@ export default function InsightsPage() {
                                     </span>
                                     <div className="flex-1 bg-[#f3f4f6] rounded-full h-2.5 overflow-hidden">
                                         <div
-                                            className="h-full rounded-full transition-all duration-700 ease-out"
+                                            className="h-full rounded-full transition-[width] duration-700 ease-out"
                                             style={{ width: `${pct}%`, backgroundColor: barColors[idx % barColors.length] }}
                                         />
                                     </div>
@@ -768,7 +768,7 @@ export default function InsightsPage() {
                         <button
                             onClick={handleCalculateScore}
                             disabled={calculatingScore}
-                            className="px-5 py-2.5 bg-white border border-red-200 text-red-700 text-sm font-medium rounded-lg hover:bg-red-50 transition-all disabled:opacity-50 flex items-center gap-2 shadow-sm"
+                            className="px-5 py-2.5 bg-white border border-red-200 text-red-700 text-sm font-medium rounded-lg hover:bg-red-50 transition-[background-color] disabled:opacity-50 flex items-center gap-2 shadow-sm"
                         >
                             <span className={`material-symbols-outlined text-base ${calculatingScore ? "animate-spin" : ""}`}>
                                 {calculatingScore ? "sync" : "calculate"}
@@ -836,7 +836,7 @@ export default function InsightsPage() {
                             <button
                                 key={i}
                                 onClick={() => setSelectedTherapist(doc)}
-                                className="bg-white/70 backdrop-blur-md rounded-xl border border-[#8ca69e]/20 shadow-sm p-5 flex flex-col gap-3 hover:shadow-md hover:border-[#10b981]/40 transition-all text-left group"
+                                className="bg-white/70 backdrop-blur-md rounded-xl border border-[#8ca69e]/20 shadow-sm p-5 flex flex-col gap-3 hover:shadow-md hover:border-[#10b981]/40 transition-[box-shadow,border-color] text-left group"
                             >
                                 {/* Avatar + Name */}
                                 <div className="flex items-center gap-3">

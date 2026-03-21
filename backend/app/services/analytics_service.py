@@ -7,12 +7,7 @@ from datetime import datetime, timedelta, timezone
 import json
 from typing import List, Dict, Any
 from app.models.database import get_supabase_client
-from app.config import get_settings
-from groq import Groq
-
-def _get_groq_client() -> Groq:
-    settings = get_settings()
-    return Groq(api_key=settings.groq_api_key)
+from app.services.ai_client import get_groq_client
 
 
 EMOTION_SCORES = {
@@ -269,7 +264,7 @@ async def generate_insights(user_id: str, language: str = "en") -> str:
     """
     
     try:
-        client = _get_groq_client()
+        client = get_groq_client()
         completion = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
@@ -354,7 +349,7 @@ async def calculate_therapist_score(user_id: str) -> dict:
     )
     
     try:
-        client = _get_groq_client()
+        client = get_groq_client()
         completion = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
@@ -389,3 +384,19 @@ async def calculate_therapist_score(user_id: str) -> dict:
             "therapist_justification": "Error calculating score."
         }
 
+
+async def get_user_patterns(user_id: str, limit: int = 20) -> list[dict]:
+    """
+    Fetch detected patterns for a user from the patterns table.
+    Returns the most recently detected patterns, newest first.
+    """
+    supabase = get_supabase_client()
+    result = (
+        supabase.table("patterns")
+        .select("id, pattern_type, description, data, detected_at")
+        .eq("user_id", user_id)
+        .order("detected_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return result.data or []

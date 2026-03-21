@@ -1,60 +1,41 @@
 # [FILENAME: app/services/voice_service.py]
-# [PURPOSE: Voice processing service using Groq Whisper (STT) and Google Cloud TTS]
-# [DEPENDENCIES: groq, google-cloud-texttospeech, app.config]
+# [PURPOSE: Voice processing service using Groq Whisper (STT) and Sarvam AI (TTS)]
+# [DEPENDENCIES: groq, sarvamai, app.services.ai_client]
 # [PHASE: Phase 6 - Voice Chat]
 
 import base64
-import os
-from groq import Groq
+import io
+from app.services.ai_client import get_groq_client
 from app.config import get_settings
-
-
-def _get_groq_client() -> Groq:
-    settings = get_settings()
-    return Groq(api_key=settings.groq_api_key)
 
 
 async def transcribe_audio(audio_bytes: bytes) -> str:
     """
-    Transcribe audio using Groq's distil-whisper-large-v3-en model.
+    Transcribe audio using Groq's whisper-large-v3 model.
+    Uses BytesIO to avoid temp file disk I/O.
     """
-    client = _get_groq_client()
-    
-    # Write bytes to a temporary file because Groq client expects a file-like object with a name
-    # or a path. Using a dummy filename helps Groq detect format.
-    # In production, consider using io.BytesIO with a 'name' attribute.
-    
-    try:
-        # Create a temporary file
-        import tempfile
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as temp_audio:
-            temp_audio.write(audio_bytes)
-            temp_audio_path = temp_audio.name
+    client = get_groq_client()
 
-        with open(temp_audio_path, "rb") as file:
-            transcription = client.audio.transcriptions.create(
-                file=(temp_audio_path, file.read()),
-                model="whisper-large-v3",
-                response_format="json",
-                language="en",
-                temperature=0.0
-            )
-        
-        # Cleanup
-        os.remove(temp_audio_path)
-        
+    try:
+        audio_buffer = io.BytesIO(audio_bytes)
+        audio_buffer.name = "audio.webm"  # Groq uses this to detect format
+
+        transcription = client.audio.transcriptions.create(
+            file=(audio_buffer.name, audio_buffer),
+            model="whisper-large-v3",
+            response_format="json",
+            language="en",
+            temperature=0.0,
+        )
+
         return transcription.text.strip()
-            
+
     except Exception as e:
-        # Start cleanup if it failed before
-        if 'temp_audio_path' in locals() and os.path.exists(temp_audio_path):
-            os.remove(temp_audio_path)
-            
         err_msg = str(e).lower()
         if getattr(e, "status_code", None) == 400 or "valid media file" in err_msg or "could not process file" in err_msg:
             # Groq rejects pure silence files with 400
             return ""
-            
+
         print(f"Transcription failed: {str(e)}")
         raise e
 

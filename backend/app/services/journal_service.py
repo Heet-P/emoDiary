@@ -5,7 +5,7 @@
 
 from typing import Optional
 from app.models.database import get_supabase_client
-from app.services.emotion_service import _get_groq_client
+from app.services.ai_client import get_groq_client
 import json
 
 async def _generate_journal_analysis(content: str) -> dict:
