@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_service_key: str = ""
 
+    # Supabase JWT Secret (for local token verification)
+    supabase_jwt_secret: str = ""
+
     # Groq AI
     groq_api_key: str = ""
 

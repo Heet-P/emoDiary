@@ -4,8 +4,6 @@
 # [PHASE: Phase 4 - AI Integration]
 
 from typing import Optional
-from groq import Groq
-from app.config import get_settings
 from app.models.database import get_supabase_client
 from app.prompts.system_prompts import (
     SYSTEM_PROMPTS,
@@ -14,12 +12,7 @@ from app.prompts.system_prompts import (
     INJECTION_REFUSAL,
 )
 from app.services import journal_service
-
-
-def _get_groq_client() -> Groq:
-    """Create a Groq client with the configured API key."""
-    settings = get_settings()
-    return Groq(api_key=settings.groq_api_key)
+from app.services.ai_client import get_groq_client
 
 
 async def start_session(user_id: str, mode: str = "text", language: str = "en") -> dict:
@@ -144,7 +137,7 @@ async def send_message(
 
     # Call Groq Llama 3.1
     try:
-        client = _get_groq_client()
+        client = get_groq_client()
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=messages,

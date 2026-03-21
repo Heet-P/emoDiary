@@ -25,6 +25,38 @@ const emotionEmojis: Record<string, string> = {
     hopeful: "🌱", neutral: "📝",
 };
 
+/** Sentiment weight per emotion tag: 0 (very negative) → 10 (very positive) */
+const EMOTION_SCORES: Record<string, number> = {
+    joy: 9.5,
+    love: 9.0,
+    gratitude: 8.5,
+    hopeful: 8.0,
+    calm: 7.5,
+    neutral: 5.5,
+    confused: 4.5,
+    anxiety: 3.5,
+    sadness: 3.0,
+    anger: 2.0,
+};
+
+function getMoodScore(entries: RecentEntry[]): number | null {
+    const scored = entries
+        .slice(0, 7)
+        .map((e) => EMOTION_SCORES[e.emotion_tag ?? ""])
+        .filter((s): s is number => s !== undefined);
+    if (scored.length === 0) return null;
+    const avg = scored.reduce((a, b) => a + b, 0) / scored.length;
+    return Math.round(avg * 10) / 10;
+}
+
+function getMoodLabel(score: number): string {
+    if (score >= 8.5) return "Thriving";
+    if (score >= 7.0) return "Stable";
+    if (score >= 5.0) return "Okay";
+    if (score >= 3.5) return "Low";
+    return "Difficult";
+}
+
 export default function DashboardClient({
     displayName,
     entryCount,
@@ -32,6 +64,9 @@ export default function DashboardClient({
 }: DashboardClientProps) {
     const { t, language } = useLanguage();
     const locale = language === "hi" ? "hi-IN" : "en-US";
+
+    const moodScore = getMoodScore(recentEntries);
+    const moodLabel = moodScore !== null ? getMoodLabel(moodScore) : null;
 
     // Recent-entries delta (entries this week)
     const oneWeekAgo = new Date();
@@ -100,9 +135,11 @@ export default function DashboardClient({
                         </p>
                         <div className="flex items-baseline gap-2 mt-3">
                             <span className="text-5xl font-black text-[#1a2e22]" style={{ fontFamily: "Georgia, serif" }}>
-                                7.5
+                                {moodScore !== null ? moodScore.toFixed(1) : "—"}
                             </span>
-                            <span className="text-xs font-bold uppercase text-[#8ca69e]">Stable</span>
+                            <span className="text-xs font-bold uppercase text-[#8ca69e]">
+                                {moodLabel ?? (entryCount === 0 ? "No data" : "—")}
+                            </span>
                         </div>
                     </div>
 
@@ -124,7 +161,7 @@ export default function DashboardClient({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {/* New Entry — dark green */}
                     <Link href="/journal/new" className="group">
-                        <div className="border-2 border-[#1a2e22] bg-[#1a2e22] p-8 flex flex-col justify-between min-h-[200px] transition-all hover:bg-[#0f1f17] relative overflow-hidden">
+                        <div className="border-2 border-[#1a2e22] bg-[#1a2e22] p-8 flex flex-col justify-between min-h-[200px] transition-[background-color,border-color,transform] hover:bg-[#0f1f17] relative overflow-hidden">
                             {/* Icon */}
                             <div className="w-12 h-12 border-2 border-[#c9a84c] flex items-center justify-center text-[#c9a84c]">
                                 <span className="material-symbols-outlined text-xl">edit_note</span>
@@ -148,7 +185,7 @@ export default function DashboardClient({
 
                     {/* Voice Chat — amber/golden */}
                     <Link href="/talk" className="group">
-                        <div className="border-2 border-[#1a2e22] bg-[#c9a84c] p-8 flex flex-col justify-between min-h-[200px] transition-all hover:bg-[#b8953e] relative overflow-hidden">
+                        <div className="border-2 border-[#1a2e22] bg-[#c9a84c] p-8 flex flex-col justify-between min-h-[200px] transition-[background-color,border-color,transform] hover:bg-[#b8953e] relative overflow-hidden">
                             {/* Icon */}
                             <div className="w-12 h-12 border-2 border-[#1a2e22] flex items-center justify-center text-[#1a2e22]">
                                 <span className="material-symbols-outlined text-xl">mic</span>
@@ -175,7 +212,7 @@ export default function DashboardClient({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {/* Insights */}
                     <Link href="/insights" className="group">
-                        <div className="border-2 border-[#1a2e22] bg-white p-8 flex flex-col justify-between min-h-[160px] transition-all hover:bg-[#f7f3eb] relative">
+                        <div className="border-2 border-[#1a2e22] bg-white p-8 flex flex-col justify-between min-h-[160px] transition-[background-color,border-color,transform] hover:bg-[#f7f3eb] relative">
                             <div className="w-10 h-10 border-2 border-[#8ca69e] flex items-center justify-center text-[#8ca69e]">
                                 <span className="material-symbols-outlined text-lg">insights</span>
                             </div>
@@ -204,7 +241,7 @@ export default function DashboardClient({
                         </div>
                         <div className="space-y-2">
                             {recentEntries.length === 0 ? (
-                                <p className="text-xs text-[#8ca69e] italic">{t.dashboard.noEntries}</p>
+                                <p className="text-xs text-[#8ca69e] italic">{t.dashboard.noEntries || "No entries yet…"}</p>
                             ) : (
                                 recentEntries.slice(0, 4).map((entry) => (
                                     <Link key={entry.id} href={`/journal/${entry.id}`}>

@@ -91,7 +91,7 @@ function SignInForm() {
                         </div>
                     )}
                     <Button type="submit" className="w-full rounded-lg" disabled={loading}>
-                        {loading ? "Signing in..." : "Sign In"}
+                        {loading ? "Signing in…" : "Sign In"}
                     </Button>
                 </form>
             </CardContent>
@@ -116,7 +116,7 @@ export default function SignInPage() {
                 <Card className="w-full max-w-md border-[#8ca69e]/20 bg-white/60 shadow-xl">
                     <CardHeader className="text-center">
                         <span className="material-symbols-outlined text-primary text-3xl mx-auto">spa</span>
-                        <CardTitle className="serif-text text-2xl font-light">Loading...</CardTitle>
+                        <CardTitle className="serif-text text-2xl font-light">Loading…</CardTitle>
                     </CardHeader>
                 </Card>
             }>

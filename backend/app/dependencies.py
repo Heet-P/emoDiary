@@ -1,11 +1,11 @@
 # [FILENAME: app/dependencies.py]
-# [PURPOSE: FastAPI dependency injection for auth verification via Supabase JWT]
-# [DEPENDENCIES: fastapi, httpx, app.config]
-# [PHASE: Phase 2 - Authentication]
+# [PURPOSE: FastAPI dependency injection for auth verification via local JWT decode]
+# [DEPENDENCIES: fastapi, python-jose, app.config]
+# [PHASE: Phase 2 - Authentication (Performance: local decode, no HTTP call)]
 
 from fastapi import Depends, HTTPException, Header
 from typing import Optional
-import httpx
+from jose import jwt, JWTError
 
 from app.config import get_settings, Settings
 
@@ -20,18 +20,37 @@ async def get_current_user(
     settings: Settings = Depends(get_settings_dep),
 ) -> str:
     """
-    Verify Supabase JWT and return user ID.
-    Uses Supabase's /auth/v1/user endpoint to validate the token.
+    Verify Supabase JWT locally and return user ID.
+
+    Decodes the token using the project's JWT secret — no outbound HTTP call.
+    Falls back to the Supabase /auth/v1/user endpoint if the secret is not configured.
     """
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing authorization header")
 
-    token = authorization.replace("Bearer ", "")
+    token = authorization.replace("Bearer ", "").strip()
     if not token:
         raise HTTPException(status_code=401, detail="Invalid token format")
 
+    # Preferred path: local decode (zero latency)
+    if settings.supabase_jwt_secret:
+        try:
+            payload = jwt.decode(
+                token,
+                settings.supabase_jwt_secret,
+                algorithms=["HS256"],
+                options={"verify_aud": False},  # Supabase sets aud="authenticated"
+            )
+            user_id = payload.get("sub")
+            if not user_id:
+                raise HTTPException(status_code=401, detail="Could not extract user ID from token")
+            return user_id
+        except JWTError as e:
+            raise HTTPException(status_code=401, detail=f"Invalid or expired token: {e}")
+
+    # Fallback path: remote Supabase call (for local dev without JWT secret set)
+    import httpx
     try:
-        # Verify token by calling Supabase's user endpoint
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{settings.supabase_url}/auth/v1/user",

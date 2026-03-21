@@ -133,7 +133,7 @@ export default function SignUpPage() {
                             </div>
                         )}
                         <Button type="submit" className="w-full rounded-lg" disabled={loading}>
-                            {loading ? "Creating account..." : "Sign Up"}
+                            {loading ? "Creating account…" : "Sign Up"}
                         </Button>
                     </form>
                 </CardContent>

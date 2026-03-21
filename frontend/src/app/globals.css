@@ -303,7 +303,7 @@
 
 /* Mood calendar cell hover */
 .mood-cell {
-  transition: transform 0.2s;
+  transition: transform 0.2s ease-in-out;
 }
 
 .mood-cell:hover {
