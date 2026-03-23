@@ -17,6 +17,10 @@ Built for **Hindi, Hinglish, Gujarati, and English** — because mental health s
 
 ---
 
+## Check the Demo Video:
+
+[![Watch Demo](./thumbnail.jpg)](https://youtu.be/HzANcjykNO4)
+
 ## Features
 
 - **AI Journal** — Write freely; AI generates emotion tags, a title, and a full sentiment report
