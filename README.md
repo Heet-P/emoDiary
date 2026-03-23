@@ -19,7 +19,7 @@ Built for **Hindi, Hinglish, Gujarati, and English** — because mental health s
 
 ## Check the Demo Video:
 
-[![Watch Demo](./thumbnail.jpg)](https://youtu.be/HzANcjykNO4)
+[![Watch Demo](./emoDiary.png)](https://youtu.be/HzANcjykNO4)
 
 ## Features
 
