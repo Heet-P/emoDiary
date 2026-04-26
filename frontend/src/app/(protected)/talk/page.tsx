@@ -58,6 +58,7 @@ export default function TalkPage() {
     const vadFrameRef = useRef<number | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+    const consecutiveFailuresRef = useRef(0);
 
     // Load avatar config on mount
     useEffect(() => {
@@ -338,6 +339,8 @@ export default function TalkPage() {
                 setMessages((prev) => [...prev, { role: "assistant", content: data.ai_response }]);
             }
 
+            consecutiveFailuresRef.current = 0;
+
             if (data.ai_audio) {
                 setVoiceState("speaking");
                 const audio = new Audio(`data:audio/wav;base64,${data.ai_audio}`);
@@ -370,14 +373,18 @@ export default function TalkPage() {
                 });
             }
         } catch (error) {
+            consecutiveFailuresRef.current += 1;
             console.error("Voice message failed:", error);
-            setVoiceState((current) => {
-                if (current === "processing") {
-                    setTimeout(startListeningLoop, 100);
-                    return "listening";
-                }
-                return current;
-            });
+
+            if (consecutiveFailuresRef.current >= 3) {
+                toast.error("Voice session interrupted. Please try again.");
+                stopContinuousVoice();
+                consecutiveFailuresRef.current = 0;
+                return;
+            }
+
+            // exponential-ish backoff: 1s, 2s on retries 1 and 2
+            setTimeout(() => startListeningLoop(), 1000 * consecutiveFailuresRef.current);
         }
     };
 
