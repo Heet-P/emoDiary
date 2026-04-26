@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { getToken } from "@/lib/get-token";
 import { toast } from "sonner";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -80,12 +81,12 @@ export default function JournalEntryDetail({ entry }: { entry: Entry }) {
         const fetchAnalysis = async () => {
             try {
                 const supabase = createClient();
-                const { data: { session } } = await supabase.auth.getSession();
-                if (!session) return;
+                const token = await getToken(supabase);
+                if (!token) return;
 
                 const res = await fetch(
                     `${API_BASE}/api/emotion/source/journal/${entry.id}`,
-                    { headers: { Authorization: `Bearer ${session.access_token}` } }
+                    { headers: { Authorization: `Bearer ${token}` } }
                 );
 
                 if (res.ok) {
@@ -111,9 +112,9 @@ export default function JournalEntryDetail({ entry }: { entry: Entry }) {
         setSaving(true);
         try {
             const supabase = createClient();
-            const { data: { session } } = await supabase.auth.getSession();
+            const token = await getToken(supabase);
 
-            if (!session) {
+            if (!token) {
                 toast.error("You need to be signed in.");
                 return;
             }
@@ -122,7 +123,7 @@ export default function JournalEntryDetail({ entry }: { entry: Entry }) {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${session.access_token}`,
+                    Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                     title: title.trim() || null,

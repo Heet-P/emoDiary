@@ -9,22 +9,30 @@ from app.services.ai_client import get_groq_client
 from app.config import get_settings
 
 
-async def transcribe_audio(audio_bytes: bytes) -> str:
+WHISPER_LANG_MAP = {
+    "en": "en",
+    "hi": "hi",
+    "hinglish": "hi",
+    "gu": "gu",
+}
+
+async def transcribe_audio(audio_bytes: bytes, language: str = "en") -> str:
     """
     Transcribe audio using Groq's whisper-large-v3 model.
     Uses BytesIO to avoid temp file disk I/O.
     """
     client = get_groq_client()
+    whisper_lang = WHISPER_LANG_MAP.get(language, "en")
 
     try:
         audio_buffer = io.BytesIO(audio_bytes)
-        audio_buffer.name = "audio.webm"  # Groq uses this to detect format
+        audio_buffer.name = "audio.webm"
 
         transcription = client.audio.transcriptions.create(
             file=(audio_buffer.name, audio_buffer),
             model="whisper-large-v3",
             response_format="json",
-            language="en",
+            language=whisper_lang,
             temperature=0.0,
         )
 
@@ -33,7 +41,6 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
     except Exception as e:
         err_msg = str(e).lower()
         if getattr(e, "status_code", None) == 400 or "valid media file" in err_msg or "could not process file" in err_msg:
-            # Groq rejects pure silence files with 400
             return ""
 
         print(f"Transcription failed: {str(e)}")

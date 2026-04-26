@@ -5,8 +5,9 @@
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from typing import Optional
+from supabase import Client
 
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_user_db
 from app.models.schemas import ChatMessageRequest, ChatMessageResponse, SessionStartResponse, SessionStartRequest
 from app.services import chat_service, voice_service, subscription_service
 
@@ -19,6 +20,7 @@ async def process_voice_message(
     language: str = Form("en"),
     audio: UploadFile = File(...),
     user_id: str = Depends(get_current_user),
+    db: Client = Depends(get_user_db),
 ):
     """
     Process a voice message:
@@ -30,7 +32,7 @@ async def process_voice_message(
     try:
         # 1. Transcribe
         audio_content = await audio.read()
-        transcript = await voice_service.transcribe_audio(audio_content)
+        transcript = await voice_service.transcribe_audio(audio_content, language=language)
 
         if not transcript:
             # User sent silence or empty file
@@ -44,6 +46,7 @@ async def process_voice_message(
 
         # 2. Get AI response (reusing chat service logic)
         chat_response = await chat_service.send_message(
+            db=db,
             user_id=user_id,
             session_id=session_id,
             message=transcript,
@@ -72,6 +75,7 @@ async def process_voice_message(
 async def start_chat_session(
     body: SessionStartRequest,
     user_id: str = Depends(get_current_user),
+    db: Client = Depends(get_user_db),
 ):
     """Start a new chat session with the AI companion."""
     # Freemium Limit Check: all sessions on the Talk page are voice sessions
@@ -83,6 +87,7 @@ async def start_chat_session(
 
     try:
         result = await chat_service.start_session(
+            db=db,
             user_id=user_id,
             mode="voice",
             language=body.language,
@@ -96,10 +101,12 @@ async def start_chat_session(
 async def send_chat_message(
     body: ChatMessageRequest,
     user_id: str = Depends(get_current_user),
+    db: Client = Depends(get_user_db),
 ):
     """Send a message and get the AI companion's response."""
     try:
         result = await chat_service.send_message(
+            db=db,
             user_id=user_id,
             session_id=body.session_id,
             message=body.message,
@@ -116,9 +123,10 @@ async def send_chat_message(
 async def get_session_messages(
     session_id: str,
     user_id: str = Depends(get_current_user),
+    db: Client = Depends(get_user_db),
 ):
     """Get all messages for a chat session."""
-    messages = await chat_service.get_session_messages(user_id, session_id)
+    messages = await chat_service.get_session_messages(db, user_id, session_id)
     return {"messages": messages}
 
 
@@ -126,9 +134,10 @@ async def get_session_messages(
 async def end_chat_session(
     session_id: str,
     user_id: str = Depends(get_current_user),
+    db: Client = Depends(get_user_db),
 ):
     """End a chat session and record its duration."""
-    result = await chat_service.end_session(user_id, session_id)
+    result = await chat_service.end_session(db, user_id, session_id)
     if not result:
         raise HTTPException(status_code=404, detail="Session not found")
     return {"status": "ended", "duration_s": result.get("duration_s", 0)}
@@ -138,10 +147,11 @@ async def end_chat_session(
 async def convert_session_to_journal(
     session_id: str,
     user_id: str = Depends(get_current_user),
+    db: Client = Depends(get_user_db),
 ):
     """Summarize a chat session and save it as a journal entry."""
     try:
-        entry = await chat_service.convert_session_to_journal(user_id, session_id)
+        entry = await chat_service.convert_session_to_journal(db, user_id, session_id)
         return entry
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

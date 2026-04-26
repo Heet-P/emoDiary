@@ -7,6 +7,7 @@ import json
 from typing import Optional
 from textblob import TextBlob
 
+from supabase import Client
 from app.models.database import get_supabase_client
 from app.services.ai_client import get_groq_client
 
@@ -132,9 +133,9 @@ async def analyze_and_store(
     return result.data[0]
 
 
-async def get_analysis_for_source(source_type: str, source_id: str) -> Optional[dict]:
+async def get_analysis_for_source(source_type: str, source_id: str, db: Client = None) -> Optional[dict]:
     """Get emotion analysis for a specific journal entry or chat session."""
-    supabase = get_supabase_client()
+    supabase = db
     result = (
         supabase.table("emotion_analyses")
         .select("*")
@@ -145,9 +146,9 @@ async def get_analysis_for_source(source_type: str, source_id: str) -> Optional[
     return result.data[0] if result.data else None
 
 
-async def get_user_emotion_history(user_id: str, limit: int = 30) -> list[dict]:
+async def get_user_emotion_history(user_id: str, limit: int = 30, db: Client = None) -> list[dict]:
     """Get recent emotion analyses for a user, for trends/visualization."""
-    supabase = get_supabase_client()
+    supabase = db
     result = (
         supabase.table("emotion_analyses")
         .select("*")

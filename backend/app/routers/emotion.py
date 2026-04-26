@@ -4,8 +4,9 @@
 # [PHASE: Phase 5 - Emotion Detection]
 
 from fastapi import APIRouter, Depends, HTTPException
+from supabase import Client
 
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_user_db
 from app.models.schemas import EmotionAnalysisRequest, EmotionAnalysisResponse
 from app.services import emotion_service
 
@@ -39,9 +40,10 @@ async def get_source_analysis(
     source_type: str,
     source_id: str,
     user_id: str = Depends(get_current_user),
+    db: Client = Depends(get_user_db),
 ):
     """Get the emotion analysis for a specific journal entry or chat session."""
-    result = await emotion_service.get_analysis_for_source(source_type, source_id)
+    result = await emotion_service.get_analysis_for_source(source_type, source_id, db=db)
     if not result:
         raise HTTPException(status_code=404, detail="No analysis found for this source")
     return result
@@ -51,7 +53,8 @@ async def get_source_analysis(
 async def get_emotion_history(
     limit: int = 30,
     user_id: str = Depends(get_current_user),
+    db: Client = Depends(get_user_db),
 ):
     """Get recent emotion analyses for the current user (for trends)."""
-    history = await emotion_service.get_user_emotion_history(user_id, limit)
+    history = await emotion_service.get_user_emotion_history(user_id, limit, db=db)
     return {"analyses": history, "count": len(history)}

@@ -26,6 +26,7 @@ import {
     Radar,
 } from "recharts";
 import { createClient } from "@/lib/supabase/client";
+import { getToken } from "@/lib/get-token";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/context/language-context";
@@ -154,10 +155,7 @@ export default function InsightsPage() {
         const fetchData = async () => {
             try {
                 const supabase = createClient();
-                const {
-                    data: { session },
-                } = await supabase.auth.getSession();
-                const token = session?.access_token;
+                const token = await getToken(supabase);
                 if (!token) return;
 
                 const {
@@ -222,10 +220,7 @@ export default function InsightsPage() {
         const toastId = toast.loading(language === "hi" ? "स्कोर की गणना की जा रही है…" : "Calculating score…");
         try {
             const supabase = createClient();
-            const {
-                data: { session },
-            } = await supabase.auth.getSession();
-            const token = session?.access_token;
+            const token = await getToken(supabase);
             if (!token) throw new Error("No token");
             const res = await fetch(`${API_BASE}/api/analytics/therapist-score`, {
                 method: "POST",

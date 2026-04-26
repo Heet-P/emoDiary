@@ -6,7 +6,7 @@
 from datetime import datetime, timedelta, timezone
 import json
 from typing import List, Dict, Any
-from app.models.database import get_supabase_client
+from supabase import Client
 from app.services.ai_client import get_groq_client
 
 
@@ -27,11 +27,11 @@ EMOTION_SCORES = {
     "Lonely": 3,
 }
 
-async def get_mood_trends(user_id: str, days: int = 30) -> Dict[str, Any]:
+async def get_mood_trends(user_id: str, days: int = 30, db: Client = None) -> Dict[str, Any]:
     """
     Fetch mood data and aggregate analytics for the extended insights dashboard.
     """
-    supabase = get_supabase_client()
+    supabase = db
     
     # We fetch 84 days (12 weeks) to support the heatmap, even if 'days' is 30.
     fetch_days = max(days, 84)
@@ -198,11 +198,11 @@ async def get_mood_trends(user_id: str, days: int = 30) -> Dict[str, Any]:
         "entry_count": len(entries)
     }
 
-async def generate_insights(user_id: str, language: str = "en") -> str:
+async def generate_insights(user_id: str, language: str = "en", db: Client = None) -> str:
     """
     Generate AI-driven insights based on recent journal entries.
     """
-    supabase = get_supabase_client()
+    supabase = db
     
     # Fetch last 10 entries for context
     response = (
@@ -293,12 +293,12 @@ async def generate_insights(user_id: str, language: str = "en") -> str:
         return json.dumps([{"observation": "Unable to generate insights at the moment. Please try again later.", "actions": ["Keep journaling daily", "Come back in a few days"]}])
 
 
-async def calculate_therapist_score(user_id: str) -> dict:
+async def calculate_therapist_score(user_id: str, db: Client = None) -> dict:
     """
     Analyze the user's recent journal entries and generate a Therapist Need Score (0-100)
     and a short justification. Saves it to user_settings.
     """
-    supabase = get_supabase_client()
+    supabase = db
     
     # Calculate start date (last 14 days)
     start_date = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
@@ -385,12 +385,12 @@ async def calculate_therapist_score(user_id: str) -> dict:
         }
 
 
-async def get_user_patterns(user_id: str, limit: int = 20) -> list[dict]:
+async def get_user_patterns(user_id: str, limit: int = 20, db: Client = None) -> list[dict]:
     """
     Fetch detected patterns for a user from the patterns table.
     Returns the most recently detected patterns, newest first.
     """
-    supabase = get_supabase_client()
+    supabase = db
     result = (
         supabase.table("patterns")
         .select("id, pattern_type, description, data, detected_at")
@@ -400,3 +400,15 @@ async def get_user_patterns(user_id: str, limit: int = 20) -> list[dict]:
         .execute()
     )
     return result.data or []
+
+
+async def get_therapist_score(user_id: str, db: Client = None) -> dict:
+    """Retrieve the stored therapist need score for a user."""
+    supabase = db
+    result = supabase.table("user_settings") \
+        .select("therapist_score, therapist_justification") \
+        .eq("user_id", user_id) \
+        .execute()
+    if not result.data:
+        return {"therapist_score": None, "therapist_justification": None}
+    return result.data[0]

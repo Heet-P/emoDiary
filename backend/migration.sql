@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   id            UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email         TEXT,
   display_name  TEXT,
-  language      TEXT DEFAULT 'en' CHECK (language IN ('en', 'hi')),
+  language      TEXT DEFAULT 'en' CHECK (language IN ('en', 'hi', 'hinglish', 'gu')),
   created_at    TIMESTAMPTZ DEFAULT now(),
   updated_at    TIMESTAMPTZ DEFAULT now()
 );
@@ -213,10 +213,10 @@ CREATE TRIGGER on_auth_user_created
 -- Avatar Config Columns (added for Phase 11)
 -- ──────────────────────────────────────────────────────────
 ALTER TABLE public.profiles
-  ADD COLUMN IF NOT EXISTS avatar_config  JSONB DEFAULT \'{}\'::jsonb,
-  ADD COLUMN IF NOT EXISTS avatar_name    TEXT  DEFAULT \'emoDiary\',
+  ADD COLUMN IF NOT EXISTS avatar_config  JSONB DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS avatar_name    TEXT  DEFAULT 'emoDiary',
   ADD COLUMN IF NOT EXISTS is_premium     BOOLEAN DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS subscription_tier TEXT DEFAULT \'free\',
+  ADD COLUMN IF NOT EXISTS subscription_tier TEXT DEFAULT 'free',
   ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMPTZ;
 
 -- Remove any legacy Razorpay columns from older versions
@@ -224,3 +224,9 @@ ALTER TABLE public.profiles
   DROP COLUMN IF EXISTS razorpay_customer_id,
   DROP COLUMN IF EXISTS razorpay_subscription_id;
 
+-- Fix language CHECK constraint to include all supported languages (en, hi, hinglish, gu)
+ALTER TABLE public.profiles
+  DROP CONSTRAINT IF EXISTS profiles_language_check;
+ALTER TABLE public.profiles
+  ADD CONSTRAINT profiles_language_check
+    CHECK (language IN ('en', 'hi', 'hinglish', 'gu'));

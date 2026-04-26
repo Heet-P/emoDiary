@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     # Supabase
     supabase_url: str = ""
     supabase_service_key: str = ""
+    supabase_anon_key: str = ""
 
     # Supabase JWT Secret (for local token verification)
     supabase_jwt_secret: str = ""
@@ -26,10 +27,6 @@ class Settings(BaseSettings):
     # Sarvam AI TTS
     sarvam_api_key: str = ""
 
-    # Upstash Redis
-    upstash_redis_url: str = ""
-    upstash_redis_token: str = ""
-    
     # Admin bypass
     admin_email: str = ""
 

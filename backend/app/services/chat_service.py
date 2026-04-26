@@ -4,7 +4,7 @@
 # [PHASE: Phase 4 - AI Integration]
 
 from typing import Optional
-from app.models.database import get_supabase_client
+from supabase import Client
 from app.prompts.system_prompts import (
     SYSTEM_PROMPTS,
     GREETING_PROMPTS,
@@ -15,12 +15,12 @@ from app.services import journal_service
 from app.services.ai_client import get_groq_client
 
 
-async def start_session(user_id: str, mode: str = "text", language: str = "en") -> dict:
+async def start_session(db: Client, user_id: str, mode: str = "text", language: str = "en") -> dict:
     """
     Create a new chat session in the database and return session info
     with an initial greeting from the AI companion.
     """
-    supabase = get_supabase_client()
+    supabase = db
 
     # Create session record
     result = supabase.table("chat_sessions").insert({
@@ -52,6 +52,7 @@ async def start_session(user_id: str, mode: str = "text", language: str = "en") 
 
 
 async def send_message(
+    db: Client,
     user_id: str,
     session_id: str,
     message: str,
@@ -66,7 +67,7 @@ async def send_message(
     5. Save AI response to DB
     6. Return AI response
     """
-    supabase = get_supabase_client()
+    supabase = db
 
     # Verify session belongs to user
     session_check = (
@@ -167,9 +168,9 @@ async def send_message(
     }
 
 
-async def get_session_messages(user_id: str, session_id: str) -> list[dict]:
+async def get_session_messages(db: Client, user_id: str, session_id: str) -> list[dict]:
     """Retrieve all messages for a session, verifying ownership."""
-    supabase = get_supabase_client()
+    supabase = db
 
     # Verify session ownership
     session_check = (
@@ -194,9 +195,9 @@ async def get_session_messages(user_id: str, session_id: str) -> list[dict]:
     return result.data or []
 
 
-async def end_session(user_id: str, session_id: str) -> Optional[dict]:
+async def end_session(db: Client, user_id: str, session_id: str) -> Optional[dict]:
     """Mark a session as ended and compute duration."""
-    supabase = get_supabase_client()
+    supabase = db
 
     # Get session to compute duration
     session_result = (
@@ -237,9 +238,9 @@ async def end_session(user_id: str, session_id: str) -> Optional[dict]:
     return update_result.data[0]
 
 
-async def convert_session_to_journal(user_id: str, session_id: str) -> dict:
+async def convert_session_to_journal(db: Client, user_id: str, session_id: str) -> dict:
     """Summarize a chat session and save it as a journal entry."""
-    supabase = get_supabase_client()
+    supabase = db
 
     # Get session
     session_check = (
@@ -256,7 +257,7 @@ async def convert_session_to_journal(user_id: str, session_id: str) -> dict:
     session_lang = session_check.data[0].get("language", "en")
 
     # Get messages
-    messages = await get_session_messages(user_id, session_id)
+    messages = await get_session_messages(db, user_id, session_id)
     if len(messages) < 2:
         raise ValueError("Not enough messages to summarize.")
 
@@ -267,7 +268,7 @@ async def convert_session_to_journal(user_id: str, session_id: str) -> dict:
 
     # Ask Groq to summarize
     try:
-        client = _get_groq_client()
+        client = get_groq_client()
         prompt = (
             "You are a helpful assistant. Read the following transcript of a conversation "
             "between a user and the emoDiary AI companion. Summarize the conversation into a well-written, "

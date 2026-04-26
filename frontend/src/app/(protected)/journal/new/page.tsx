@@ -9,6 +9,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { getToken } from "@/lib/get-token";
 import { toast } from "sonner";
 
 const emotionOptions = [
@@ -42,9 +43,9 @@ export default function NewJournalEntryPage() {
         setSaving(true);
         try {
             const supabase = createClient();
-            const { data: { session } } = await supabase.auth.getSession();
+            const token = await getToken(supabase);
 
-            if (!session) {
+            if (!token) {
                 toast.error("You need to be signed in.");
                 return;
             }
@@ -53,7 +54,7 @@ export default function NewJournalEntryPage() {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${session.access_token}`,
+                    Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                     title: title.trim() || null,

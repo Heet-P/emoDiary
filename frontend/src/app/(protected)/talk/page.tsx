@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { getToken } from "@/lib/get-token";
 import { toast } from "sonner";
 import { useLanguage } from "@/context/language-context";
 import { AvatarHead, AvatarConfig } from "@/components/avatar/AvatarHead";
@@ -25,6 +27,7 @@ const DEFAULT_AVATAR: AvatarConfig = {
 };
 
 export default function TalkPage() {
+    const router = useRouter();
     const { t, language, setLanguage } = useLanguage();
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
@@ -35,7 +38,6 @@ export default function TalkPage() {
     const [showSavePrompt, setShowSavePrompt] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
-    const router = require("next/navigation").useRouter();
 
     // Avatar state
     const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>(DEFAULT_AVATAR);
@@ -57,12 +59,13 @@ export default function TalkPage() {
     const vadFrameRef = useRef<number | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+    const consecutiveFailuresRef = useRef(0);
 
     // Load avatar config on mount
     useEffect(() => {
         async function loadAvatar() {
             try {
-                const token = await getToken();
+                const token = await fetchToken();
                 const res = await fetch(`${API_BASE}/api/profile/avatar`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
@@ -95,10 +98,9 @@ export default function TalkPage() {
         scrollToBottom();
     }, [messages, scrollToBottom]);
 
-    const getToken = async () => {
+    const fetchToken = async () => {
         const supabase = createClient();
-        const { data } = await supabase.auth.getSession();
-        return data.session?.access_token || "";
+        return getToken(supabase);
     };
 
     // ─── Lip Sync Engine ───────────────────────────────────────────
@@ -153,7 +155,7 @@ export default function TalkPage() {
     const startSession = async () => {
         setStarting(true);
         try {
-            const token = await getToken();
+            const token = await fetchToken();
             const res = await fetch(`${API_BASE}/api/chat/session`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -180,7 +182,7 @@ export default function TalkPage() {
         setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
         setLoading(true);
         try {
-            const token = await getToken();
+            const token = await fetchToken();
             const res = await fetch(`${API_BASE}/api/chat/message`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -321,7 +323,7 @@ export default function TalkPage() {
         formData.append("language", language);
 
         try {
-            const token = await getToken();
+            const token = await fetchToken();
             const res = await fetch(`${API_BASE}/api/chat/voice`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}` },
@@ -336,6 +338,8 @@ export default function TalkPage() {
             if (data.ai_response?.trim().length > 0) {
                 setMessages((prev) => [...prev, { role: "assistant", content: data.ai_response }]);
             }
+
+            consecutiveFailuresRef.current = 0;
 
             if (data.ai_audio) {
                 setVoiceState("speaking");
@@ -369,14 +373,18 @@ export default function TalkPage() {
                 });
             }
         } catch (error) {
+            consecutiveFailuresRef.current += 1;
             console.error("Voice message failed:", error);
-            setVoiceState((current) => {
-                if (current === "processing") {
-                    setTimeout(startListeningLoop, 100);
-                    return "listening";
-                }
-                return current;
-            });
+
+            if (consecutiveFailuresRef.current >= 3) {
+                toast.error("Voice session interrupted. Please try again.");
+                stopContinuousVoice();
+                consecutiveFailuresRef.current = 0;
+                return;
+            }
+
+            // exponential-ish backoff: 1s, 2s on retries 1 and 2
+            setTimeout(() => startListeningLoop(), 1000 * consecutiveFailuresRef.current);
         }
     };
 
@@ -395,7 +403,7 @@ export default function TalkPage() {
         setEnding(true);
         setShowSavePrompt(false);
         try {
-            const token = await getToken();
+            const token = await fetchToken();
             await fetch(`${API_BASE}/api/chat/session/${sessionId}/end`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}` },

@@ -4,16 +4,11 @@ import { useEffect, useState } from "react";
 import { AvatarPicker } from "@/components/avatar/AvatarPicker";
 import { AvatarHead, AvatarConfig } from "@/components/avatar/AvatarHead";
 import { createClient } from "@/lib/supabase/client";
+import { getToken } from "@/lib/get-token";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-async function getToken() {
-    const supabase = createClient();
-    const { data } = await supabase.auth.getSession();
-    return data.session?.access_token ?? "";
-}
 
 export default function SettingsPage() {
     const [avatarConfig, setAvatarConfig] = useState<AvatarConfig | null>(null);
@@ -23,7 +18,8 @@ export default function SettingsPage() {
     useEffect(() => {
         async function fetchAvatar() {
             try {
-                const token = await getToken();
+                const supabase = createClient();
+                const token = await getToken(supabase);
                 const res = await fetch(`${API_BASE}/api/profile/avatar`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });

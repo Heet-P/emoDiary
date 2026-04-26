@@ -8,6 +8,8 @@ from typing import Optional
 from jose import jwt, JWTError
 
 from app.config import get_settings, Settings
+from app.models.database import get_user_supabase_client
+from supabase import Client
 
 
 def get_settings_dep() -> Settings:
@@ -76,3 +78,22 @@ async def get_current_user(
             status_code=503,
             detail=f"Auth service unavailable: {str(e)}"
         )
+
+
+async def get_current_token(
+    authorization: Optional[str] = Header(None),
+) -> str:
+    """Extract raw JWT from Authorization header."""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing authorization header")
+    token = authorization.replace("Bearer ", "").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="Invalid token format")
+    return token
+
+
+async def get_user_db(
+    token: str = Depends(get_current_token),
+) -> Client:
+    """FastAPI dependency: returns a Supabase client scoped to the authenticated user (RLS enforced)."""
+    return get_user_supabase_client(token)

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getToken } from "@/lib/get-token";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -27,12 +28,12 @@ export function useSubscription() {
 
     const fetchStatus = useCallback(async () => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
+            const token = await getToken(supabase);
+            if (!token) return;
 
             const res = await fetch(`${API_BASE}/api/subscription/usage`, {
                 headers: {
-                    Authorization: `Bearer ${session.access_token}`,
+                    Authorization: `Bearer ${token}`,
                 },
             });
             if (res.ok) {
