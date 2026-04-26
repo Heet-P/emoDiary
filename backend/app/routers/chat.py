@@ -30,7 +30,7 @@ async def process_voice_message(
     try:
         # 1. Transcribe
         audio_content = await audio.read()
-        transcript = await voice_service.transcribe_audio(audio_content)
+        transcript = await voice_service.transcribe_audio(audio_content, language=language)
 
         if not transcript:
             # User sent silence or empty file
