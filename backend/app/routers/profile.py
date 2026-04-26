@@ -8,8 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
-from app.models.database import get_supabase_client
-from app.dependencies import get_current_user
+from supabase import Client
+from app.dependencies import get_current_user, get_user_db
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 
@@ -27,12 +27,14 @@ class AvatarSaveRequest(BaseModel):
 
 
 @router.get("/avatar")
-async def get_avatar(user: str = Depends(get_current_user)):
+async def get_avatar(
+    user: str = Depends(get_current_user),
+    db: Client = Depends(get_user_db),
+):
     """Return the current user's avatar config and name."""
-    supabase = get_supabase_client()
     try:
         result = (
-            supabase.table("profiles")
+            db.table("profiles")
             .select("avatar_config, avatar_name")
             .eq("id", user)
             .single()
@@ -62,12 +64,15 @@ async def get_avatar(user: str = Depends(get_current_user)):
 
 
 @router.put("/avatar")
-async def update_avatar(payload: AvatarSaveRequest, user: str = Depends(get_current_user)):
+async def update_avatar(
+    payload: AvatarSaveRequest,
+    user: str = Depends(get_current_user),
+    db: Client = Depends(get_user_db),
+):
     """Save avatar config and name to profiles table."""
-    supabase = get_supabase_client()
     try:
         result = (
-            supabase.table("profiles")
+            db.table("profiles")
             .update({
                 "avatar_config": payload.avatar_config.model_dump(),
                 "avatar_name": payload.avatar_name,
