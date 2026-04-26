@@ -400,3 +400,15 @@ async def get_user_patterns(user_id: str, limit: int = 20) -> list[dict]:
         .execute()
     )
     return result.data or []
+
+
+async def get_therapist_score(user_id: str) -> dict:
+    """Retrieve the stored therapist need score for a user."""
+    supabase = get_supabase_client()
+    result = supabase.table("user_settings") \
+        .select("therapist_score, therapist_justification") \
+        .eq("user_id", user_id) \
+        .execute()
+    if not result.data:
+        return {"therapist_score": None, "therapist_justification": None}
+    return result.data[0]

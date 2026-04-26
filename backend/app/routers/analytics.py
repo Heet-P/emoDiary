@@ -64,12 +64,7 @@ async def get_therapist_score(
     Get the user's current Therapist Need Score from user_settings.
     """
     try:
-        from app.models.database import get_supabase_client
-        supabase = get_supabase_client()
-        result = supabase.table("user_settings").select("therapist_score, therapist_justification").eq("user_id", user_id).execute()
-        if not result.data:
-            return {"therapist_score": None, "therapist_justification": None}
-        return result.data[0]
+        return await analytics_service.get_therapist_score(user_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
