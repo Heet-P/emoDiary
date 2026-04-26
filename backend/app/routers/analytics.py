@@ -3,16 +3,18 @@
 # [DEPENDENCIES: fastapi, app.services.analytics_service, app.dependencies]
 # [PHASE: Phase 7 - Analytics]
 
-from fastapi import APIRouter, Depends, HTTPException
-from typing import Dict, Any, List
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Dict, Any
 from app.dependencies import get_current_user
 from app.services import analytics_service
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
+ALLOWED_LANGUAGES = {"en", "hi", "hinglish", "gu"}
+
 @router.get("/trends")
 async def get_trends(
-    days: int = 30,
+    days: int = Query(30, ge=1, le=365),
     user_id: str = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
@@ -25,12 +27,14 @@ async def get_trends(
 
 @router.get("/insights")
 async def get_insights(
-    language: str = "en",
+    language: str = Query("en"),
     user_id: str = Depends(get_current_user)
 ) -> Dict[str, str]:
     """
     Get AI-generated insights based on recent journal entries.
     """
+    if language not in ALLOWED_LANGUAGES:
+        raise HTTPException(status_code=422, detail=f"language must be one of {sorted(ALLOWED_LANGUAGES)}")
     try:
         insights = await analytics_service.generate_insights(user_id, language)
         return {"insights": insights}
