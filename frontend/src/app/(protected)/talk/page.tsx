@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { getToken } from "@/lib/get-token";
 import { toast } from "sonner";
 import { useLanguage } from "@/context/language-context";
 import { AvatarHead, AvatarConfig } from "@/components/avatar/AvatarHead";
@@ -64,7 +65,7 @@ export default function TalkPage() {
     useEffect(() => {
         async function loadAvatar() {
             try {
-                const token = await getToken();
+                const token = await fetchToken();
                 const res = await fetch(`${API_BASE}/api/profile/avatar`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
@@ -97,10 +98,9 @@ export default function TalkPage() {
         scrollToBottom();
     }, [messages, scrollToBottom]);
 
-    const getToken = async () => {
+    const fetchToken = async () => {
         const supabase = createClient();
-        const { data } = await supabase.auth.getSession();
-        return data.session?.access_token || "";
+        return getToken(supabase);
     };
 
     // ─── Lip Sync Engine ───────────────────────────────────────────
@@ -155,7 +155,7 @@ export default function TalkPage() {
     const startSession = async () => {
         setStarting(true);
         try {
-            const token = await getToken();
+            const token = await fetchToken();
             const res = await fetch(`${API_BASE}/api/chat/session`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -182,7 +182,7 @@ export default function TalkPage() {
         setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
         setLoading(true);
         try {
-            const token = await getToken();
+            const token = await fetchToken();
             const res = await fetch(`${API_BASE}/api/chat/message`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -323,7 +323,7 @@ export default function TalkPage() {
         formData.append("language", language);
 
         try {
-            const token = await getToken();
+            const token = await fetchToken();
             const res = await fetch(`${API_BASE}/api/chat/voice`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}` },
@@ -403,7 +403,7 @@ export default function TalkPage() {
         setEnding(true);
         setShowSavePrompt(false);
         try {
-            const token = await getToken();
+            const token = await fetchToken();
             await fetch(`${API_BASE}/api/chat/session/${sessionId}/end`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}` },

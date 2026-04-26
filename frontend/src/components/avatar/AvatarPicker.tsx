@@ -5,6 +5,7 @@ import { AvatarHead, AvatarConfig } from "@/components/avatar/AvatarHead";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { getToken } from "@/lib/get-token";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -45,12 +46,6 @@ interface AvatarPickerProps {
     onSaved?: (config: AvatarConfig, name: string) => void;
 }
 
-async function getToken() {
-    const supabase = createClient();
-    const { data } = await supabase.auth.getSession();
-    return data.session?.access_token ?? "";
-}
-
 export function AvatarPicker({ initialConfig, initialName, onSaved }: AvatarPickerProps) {
     const [config, setConfig] = useState<AvatarConfig>({
         skin: initialConfig?.skin ?? "warm",
@@ -71,7 +66,8 @@ export function AvatarPicker({ initialConfig, initialName, onSaved }: AvatarPick
         }
         setSaving(true);
         try {
-            const token = await getToken();
+            const supabase = createClient();
+            const token = await getToken(supabase);
             const res = await fetch(`${API_BASE}/api/profile/avatar`, {
                 method: "PUT",
                 headers: {
