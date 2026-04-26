@@ -11,7 +11,7 @@ import json
 async def _generate_journal_analysis(content: str) -> dict:
     """Uses Groq to generate ai_multi_tags and a detailed_sentiment_report."""
     try:
-        client = _get_groq_client()
+        client = get_groq_client()
         prompt = (
             "You are an empathetic psychological analyzer. Read the following journal entry "
             "and provide two things:\n"

@@ -267,7 +267,7 @@ async def convert_session_to_journal(user_id: str, session_id: str) -> dict:
 
     # Ask Groq to summarize
     try:
-        client = _get_groq_client()
+        client = get_groq_client()
         prompt = (
             "You are a helpful assistant. Read the following transcript of a conversation "
             "between a user and the emoDiary AI companion. Summarize the conversation into a well-written, "
