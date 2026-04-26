@@ -4,6 +4,7 @@
 # [PHASE: Phase 3 - Core Journaling]
 
 from typing import Optional
+from datetime import datetime, timezone
 from app.models.database import get_supabase_client
 from app.services.ai_client import get_groq_client
 import json
@@ -132,7 +133,7 @@ async def update_entry(
     if not updates:
         return await get_entry(user_id, entry_id)
 
-    updates["updated_at"] = "now()"
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     result = (
         supabase.table("journal_entries")
