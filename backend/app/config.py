@@ -26,10 +26,6 @@ class Settings(BaseSettings):
     # Sarvam AI TTS
     sarvam_api_key: str = ""
 
-    # Upstash Redis
-    upstash_redis_url: str = ""
-    upstash_redis_token: str = ""
-    
     # Admin bypass
     admin_email: str = ""
 
