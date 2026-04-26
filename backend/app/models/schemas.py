@@ -3,7 +3,7 @@
 # [DEPENDENCIES: pydantic]
 # [PHASE: Phase 1 - Scaffolding (stubs for future phases)]
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional
 
@@ -19,7 +19,7 @@ class HealthResponse(BaseModel):
 
 class JournalEntryCreate(BaseModel):
     title: Optional[str] = None
-    content: str
+    content: str = Field(..., min_length=1, max_length=50000)
     emotion_tag: Optional[str] = None
 
 class JournalEntryUpdate(BaseModel):
