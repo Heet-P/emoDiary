@@ -5,7 +5,7 @@
 
 from typing import Optional
 from datetime import datetime, timezone
-from app.models.database import get_supabase_client
+from supabase import Client
 from app.services.ai_client import get_groq_client
 import json
 
@@ -43,9 +43,9 @@ async def _generate_journal_analysis(content: str) -> dict:
         return {"ai_multi_tags": [], "detailed_sentiment_report": None}
 
 
-async def create_entry(user_id: str, title: Optional[str], content: str, emotion_tag: Optional[str] = None) -> dict:
+async def create_entry(user_id: str, title: Optional[str], content: str, db: Client, emotion_tag: Optional[str] = None) -> dict:
     """Create a new journal entry and return the created record."""
-    supabase = get_supabase_client()
+    supabase = db
     word_count = len(content.split())
 
     data = {
@@ -71,9 +71,9 @@ async def create_entry(user_id: str, title: Optional[str], content: str, emotion
     return result.data[0]
 
 
-async def get_entries(user_id: str, limit: int = 20, offset: int = 0) -> list[dict]:
+async def get_entries(user_id: str, limit: int = 20, offset: int = 0, db: Client = None) -> list[dict]:
     """List journal entries for a user, newest first."""
-    supabase = get_supabase_client()
+    supabase = db
 
     result = (
         supabase.table("journal_entries")
@@ -87,9 +87,9 @@ async def get_entries(user_id: str, limit: int = 20, offset: int = 0) -> list[di
     return result.data or []
 
 
-async def get_entry(user_id: str, entry_id: str) -> Optional[dict]:
+async def get_entry(user_id: str, entry_id: str, db: Client = None) -> Optional[dict]:
     """Get a single journal entry. Returns None if not found or not owned by user."""
-    supabase = get_supabase_client()
+    supabase = db
 
     result = (
         supabase.table("journal_entries")
@@ -108,12 +108,13 @@ async def get_entry(user_id: str, entry_id: str) -> Optional[dict]:
 async def update_entry(
     user_id: str,
     entry_id: str,
+    db: Client = None,
     title: Optional[str] = None,
     content: Optional[str] = None,
     emotion_tag: Optional[str] = None,
 ) -> Optional[dict]:
     """Update a journal entry. Returns updated record or None if not found."""
-    supabase = get_supabase_client()
+    supabase = db
 
     updates: dict = {}
     if title is not None:
@@ -131,7 +132,7 @@ async def update_entry(
         updates["detailed_sentiment_report"] = analysis["detailed_sentiment_report"]
 
     if not updates:
-        return await get_entry(user_id, entry_id)
+        return await get_entry(user_id, entry_id, db=db)
 
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
 
@@ -149,9 +150,9 @@ async def update_entry(
     return result.data[0]
 
 
-async def delete_entry(user_id: str, entry_id: str) -> bool:
+async def delete_entry(user_id: str, entry_id: str, db: Client = None) -> bool:
     """Delete a journal entry. Returns True if deleted."""
-    supabase = get_supabase_client()
+    supabase = db
 
     result = (
         supabase.table("journal_entries")
@@ -164,9 +165,9 @@ async def delete_entry(user_id: str, entry_id: str) -> bool:
     return bool(result.data)
 
 
-async def get_entry_count(user_id: str) -> int:
+async def get_entry_count(user_id: str, db: Client = None) -> int:
     """Get total count of journal entries for a user."""
-    supabase = get_supabase_client()
+    supabase = db
 
     result = (
         supabase.table("journal_entries")
