@@ -3,7 +3,7 @@
 # [DEPENDENCIES: fastapi, app.dependencies, app.services.journal_service, app.models.schemas]
 # [PHASE: Phase 3 - Core Journaling]
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from typing import Optional
 
 from app.dependencies import get_current_user
@@ -13,7 +13,6 @@ from app.models.schemas import (
     JournalEntryResponse,
 )
 from app.services import journal_service, emotion_service, subscription_service
-import asyncio
 
 router = APIRouter(prefix="/api/journal", tags=["journal"])
 
@@ -21,16 +20,17 @@ router = APIRouter(prefix="/api/journal", tags=["journal"])
 @router.post("", response_model=JournalEntryResponse, status_code=201)
 async def create_journal_entry(
     body: JournalEntryCreate,
+    background_tasks: BackgroundTasks,
     user_id: str = Depends(get_current_user),
 ):
     """Create a new journal entry."""
     # Freemium Limit Check
     if not await subscription_service.can_create_journal(user_id):
         raise HTTPException(
-            status_code=403, 
+            status_code=403,
             detail="Journal entry limit reached (14). Please upgrade to Premium for unlimited entries."
         )
-    
+
     try:
         entry = await journal_service.create_entry(
             user_id=user_id,
@@ -39,8 +39,8 @@ async def create_journal_entry(
             emotion_tag=body.emotion_tag,
         )
         # Trigger emotion analysis in background (non-blocking)
-        asyncio.create_task(
-            emotion_service.analyze_and_store(user_id, "journal", entry["id"], body.content)
+        background_tasks.add_task(
+            emotion_service.analyze_and_store, user_id, "journal", entry["id"], body.content
         )
         return entry
     except Exception as e:
@@ -83,6 +83,7 @@ async def get_journal_entry(
 async def update_journal_entry(
     entry_id: str,
     body: JournalEntryUpdate,
+    background_tasks: BackgroundTasks,
     user_id: str = Depends(get_current_user),
 ):
     """Update a journal entry."""
@@ -97,8 +98,8 @@ async def update_journal_entry(
         raise HTTPException(status_code=404, detail="Journal entry not found")
     # Re-analyze emotions if content changed
     if body.content:
-        asyncio.create_task(
-            emotion_service.analyze_and_store(user_id, "journal", entry_id, body.content)
+        background_tasks.add_task(
+            emotion_service.analyze_and_store, user_id, "journal", entry_id, body.content
         )
     return entry
 
