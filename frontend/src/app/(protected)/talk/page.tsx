@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useLanguage } from "@/context/language-context";
@@ -25,6 +26,7 @@ const DEFAULT_AVATAR: AvatarConfig = {
 };
 
 export default function TalkPage() {
+    const router = useRouter();
     const { t, language, setLanguage } = useLanguage();
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
@@ -35,7 +37,6 @@ export default function TalkPage() {
     const [showSavePrompt, setShowSavePrompt] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
-    const router = require("next/navigation").useRouter();
 
     // Avatar state
     const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>(DEFAULT_AVATAR);
